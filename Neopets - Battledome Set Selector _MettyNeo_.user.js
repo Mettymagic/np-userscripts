@@ -176,7 +176,7 @@ const obs = new MutationObserver(mutations => {
         mutation.removedNodes.forEach(removed => {
             if(removed.id === "introdiv") {
                 addBar() //adds set bar
-                addClear() //adds clear button
+                //addClear() //adds clear button
                 obs.disconnect() //observation done
             }
         })
