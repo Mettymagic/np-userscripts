@@ -589,7 +589,7 @@ async function pressFinalSkip() {
 //selects the default set
 function setDefault() {
     let round = getRoundCount()
-    let autofill = JSON.parse(window.localStorage.getItem("bdautofill"))
+    let autofill = JSON.parse(window.localStorage.getItem("bdautofill") || JSON.stringify(nullautofill))
 
     if(round == 1 && autofill.turn1 != null) {
         let set = getStoredSet(autofill.turn1).set
