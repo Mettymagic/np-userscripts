@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected.
 // @author       Metamagic
-// @version      1.1
+// @version      1.2
 // @match        https://www.neopets.com/dome/arena.phtml
 // ==/UserScript==
 
@@ -479,15 +479,15 @@ function createSelect(i, set) {
     o1.innerHTML = "Never" //for some reason label doesnt work on some systems
     o2.value = 1
     o2.label = "First Turn"
-    o1.innerHTML = "First Turn"
+    o2.innerHTML = "First Turn"
     if(afset.turn1 != null && afset.turn1 != i) o2.disabled = true
     o3.value = 2
     o3.label = "Second Turn"
-    o1.innerHTML = "Second Turn"
+    o3.innerHTML = "Second Turn"
     if(afset.turn2 != null && afset.turn2 != i) o3.disabled = true
     o4.value = 3
     o4.label = "Default"
-    o1.innerHTML = "Default"
+    o4.innerHTML = "Default"
     if(afset.default != null && afset.default != i) o4.disabled = true
 
     //adds options
