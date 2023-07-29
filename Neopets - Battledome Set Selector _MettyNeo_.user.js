@@ -219,7 +219,7 @@ function addBar() {
                 }
                 if(autofilled < getRoundCount()) {
                     //autofill doesnt apply when obelisk limit is in place
-                    if(!isObelisk() || getData("bditemlimit") != getDate()) {
+                    if(!limitObelisk()) {
                         autofilled = getRoundCount()
                         setDefault()
                     }
@@ -230,8 +230,8 @@ function addBar() {
     })
     statusObs.observe(status, {childList: true})
 
-    //checks hud for when battle is over
-    if(SKIP_FINAL_ANIMATION) {
+    //checks hud for when battle is over, disables if obelisk limit in place
+    if(SKIP_FINAL_ANIMATION && !limitObelisk()) {
         let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
         const hpObs = new MutationObserver(mutations => {
             for(const mutation of mutations) {
@@ -938,6 +938,9 @@ function highlightItemLimit() {
         msg.innerHTML = "<b>You have reached the maximum item limit!</b>"
         win.querySelector("#bd_rewards").appendChild(msg)
     }
+}
+function limitObelisk() {
+    return isObelisk() && getData("bditemlimit") == getDate()
 }
 function addObeliskContribution() {
     let obelisk = isObelisk()
