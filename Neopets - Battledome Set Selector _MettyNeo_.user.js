@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Battledome Set Selector <MettyNeo>
-// @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected.
+// @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as skipping the final battle animation to pull up the victory screen without prompt.
 // @author       Metamagic
 // @version      1.4
 // @match        https://www.neopets.com/dome/arena.phtml
@@ -11,10 +11,9 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-//TO-DO: disable containers from being made and display message over bar during 2p and obelisk battles
-//maybe disable it after the 15 games?
-
-const REWARD_POPUP_DELAY = 750 //in ms
+const HIGHLIGHT_MAX_REWARDS = true //makes the victory box red tinted if you're maxed on items. set to false to disable
+const SKIP_FINAL_ANIMATION = true //skips the final animation, pulling up the victory prompt without having to manually skip the animation. set to false to disable.
+const REWARD_POPUP_DELAY = 1000 //delay (in ms) to wait before pulling up the victory menu. lower values might result in weird behavior. min. 250ms, 1000ms recommended.
 
 //==========
 // style css
@@ -178,18 +177,20 @@ const nullautofill = {turn1:null, turn2:null, default:null}
 
 //adds bar once bd intro disappears
 //the magic happens from there :)
-const obs = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-        mutation.removedNodes.forEach(removed => {
+const introObs = new MutationObserver(mutations => {
+    introbreak:
+    for(const mutation of mutations) {
+        for(const removed of mutation.removedNodes) {
             if(removed.id === "introdiv") {
                 addBar() //adds set bar
-                //addClear() //adds clear button
-                obs.disconnect() //observation done
+                handleItemLimit() //checks for when item limit has been reached
+                introObs.disconnect() //observation done
+                break introbreak
             }
-        })
-    })
+        }
+    }
 })
-obs.observe($("#arenacontainer #playground")[0], {childList: true})
+introObs.observe($("#arenacontainer #playground")[0], {childList: true})
 
 //================
 // create elements
@@ -208,12 +209,11 @@ function addBar() {
 
     let autofilled = -1 //prevents autofilling twice in same round
     //checks status bar for when turn is ready
-    const obs1 = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
+    const statusObs = new MutationObserver(mutations => {
+        for(const mutation of mutations) {
             if(status.textContent == "Plan your next move..."){
                 //populates the bar
                 if(firstLoad) {
-                    firstLoad = false
                     bar.innerHTML = ""
                     fillBar(bar)
                 }
@@ -221,46 +221,68 @@ function addBar() {
                     autofilled = getRoundCount()
                     setDefault()
                 }
-                return false
+                break
             }
-        })
+        }
     })
-    obs1.observe(status, {childList: true})
+    statusObs.observe(status, {childList: true})
 
     //checks hud for when battle is over
-    let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
-    const obs2 = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
-                pressFinalSkip()
-                obs2.disconnect()
+    if(SKIP_FINAL_ANIMATION) {
+        let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
+        const hpObs = new MutationObserver(mutations => {
+            for(const mutation of mutations) {
+                if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
+                    pressFinalSkip()
+                    hpObs.disconnect()
+                    break
+                }
             }
         })
-    })
-    obs2.observe(hud, {childList: true, subtree: true})
+        hpObs.observe(hud, {childList: true, subtree: true})
+    }
 }
 
 //checks to see if bar should be populated before doing that
 function fillBar(bar) {
+    //script is disabled for obelisk once item limit hit
     if(isObelisk()) {
-        console.log("Obelisk battle detected, Battledome Set Selector disabled.")
-        bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
+        let limit = getData("bditemlimit")
+        let date = getDate()
+        //havent hit item limit yet today, not blocked
+        if(limit != date) {
+            if(firstLoad) {
+                console.log("[BSS] Obelisk battle permitted, daily item limit not reached.")
+                console.log("[BSS] Populating BSS bar.")
+            }
+            else console.log("[BSS] Refreshing BSS bar.")
+            populateBar(bar)
+
+        }
+        //hit item limit today, blocked
+        else {
+            console.log("[BSS] Obelisk battle detected, Battledome Set Selector disabled.")
+            bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
+        }
+        if(firstLoad) addObeliskContribution()
     }
+    //script is disabled for 2p
     else if(is2Player()) {
-        console.log("2P battle detected, BSS disabled.")
+        console.log("[BSS] 2P battle detected, BSS disabled.")
         bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i><i><small>League regulations require you to be on your own in these battles. May fate be by your side.</small></i>"
     }
     else {
-        console.log("Populating BSS bar.")
+        if(firstLoad) console.log("[BSS] Populating BSS bar.")
+        else console.log("[BSS] Refreshing BSS bar.")
         populateBar(bar)
     }
+    firstLoad = false
 }
 
 function populateBar(bar) {
     //puts each sets container on the bar
     let bdsetdata = getData("bdsets")
-    bdsetdata.forEach((bdset, index) => {
-        let set = JSON.parse(bdset)
+    bdsetdata.forEach((set, index) => {
         //main container of a set
         let container = document.createElement("div"), options = document.createElement("div")
         //sets element classes
@@ -268,7 +290,7 @@ function populateBar(bar) {
         container.id = `bdsetc${index}`
         container.style.backgroundColor = getHex(colormap[index])
 
-        let button = makeSetButton(set.name, set.set)
+        let button = makeSetButton(set.name, set.set, index)
         container.appendChild(button)
 
         //adds option buttons to container
@@ -373,6 +395,7 @@ function makeSettingsButton(i) {
     return button
 }
 
+//one hell of a functiont hat uses JS to make the setting menu
 function makeSettingsMenu(i) {
     closeSettingsMenus() //closes other menus
 
@@ -468,6 +491,7 @@ function makeSettingsMenu(i) {
     $("#arenacontainer")[0].parentElement.appendChild(menuc)
 }
 
+//saves and closes the setting menu
 function closeSettingsMenus(save, i) {
     let menu = $("#bdsettingsmenu")[0]
     if(menu == undefined) return
@@ -551,7 +575,7 @@ function useSet(item1, item2, ability, i) {
     //makes fight button active
     $("#arenacontainer #fight")[0].classList.remove("inactive")
 
-    console.log(`Set ${i} applied.`)
+    console.log(`[BSS] Set ${i} applied.`)
 }
 
 //save current selection to set
@@ -587,7 +611,7 @@ function saveNewSet(i) {
     }
 
     updateStoredSet(i, bdset)
-    console.log(`Set slot ${i} saved.`)
+    console.log(`[BSS] Set slot ${i} saved.`)
     updateBar()
 }
 
@@ -613,7 +637,7 @@ function clearSlots() {
 async function pressFinalSkip() {
     delay(REWARD_POPUP_DELAY).then(() => {
         let button = $("#arenacontainer #skipreplay")[0]
-        console.log("Skipping final animation")
+        console.log("[BSS] Skipping final animation")
         button.click()
     })
 }
@@ -626,17 +650,17 @@ function setDefault() {
     if(round == 1 && autofill.turn1 != null) {
         let set = getData("bdsets", autofill.turn1).set
         useSet(set[0],set[1],set[2], autofill.turn1)
-        console.log(`Set ${autofill.turn1} autofilled.`)
+        console.log(`[BSS] Set ${autofill.turn1} autofilled.`)
     }
     else if(round == 2 && autofill.turn2 != null) {
         let set = getData("bdsets", autofill.turn2).set
         useSet(set[0],set[1],set[2], autofill.turn2)
-        console.log(`Set ${autofill.turn2} autofilled.`)
+        console.log(`[BSS] Set ${autofill.turn2} autofilled.`)
     }
     else if(autofill.default != null){
         let set = getData("bdsets", autofill.default).set
         useSet(set[0],set[1],set[2], autofill.default)
-        console.log(`Set ${autofill.default} autofilled.`)
+        console.log(`[BSS] Set ${autofill.default} autofilled.`)
     }
 }
 
@@ -644,23 +668,18 @@ function setDefault() {
 //selects the nth occurrence of the item (defaults to first)
 function getItemInfo(url, n=1) {
     let info = null
-    let itemcols = $("#arenacontainer #p1equipment")[0].children[2].children
+    let itemlist = $("#arenacontainer #p1equipment")[0].children[2].getElementsByTagName("li")
     let count = 0
     //iterates through each item in bd menu (even if its hidden it still exists)
-    //foreach functions as a nested function so this shits a bit weird
-    Array.from(itemcols).forEach(col => {
-        let br = Array.from(col.children).forEach(item => {
-            //if its image url equals the items and its the right count, return its id
-            if(item.children[0].src == url) {
-                count++
-                if(count == n) {
-                    info = {id:item.children[0].id, name:item.children[0].alt, node:item.children[0]}
-                    return false
-                }
+    for(const item of itemlist) { //each column
+        if(item.children[0].src == url) {
+            count++
+            if(count == n) {
+                info = {id:item.children[0].id, name:item.children[0].alt, node:item.children[0]}
+                break
             }
-        })
-        if(!br) return false
-    })
+        }
+    }
     return info
 }
 
@@ -669,7 +688,7 @@ function getAbilityInfo(url) {
     let info = null
     let table = $("#arenacontainer #p1ability")[0].children[2].children[0].getElementsByTagName("td")
 
-    Array.from(table).forEach(node => {
+    for(const node of table) {
         if(node.getAttribute("title") != null) {
             //we found our node
             let nodeurl = node.children[0].innerHTML.match(/img src=\"(.*?)\"/)[1]
@@ -679,17 +698,12 @@ function getAbilityInfo(url) {
             }
             if(nodeurl == url) {
                 //ability on cd
-                if(node.children[0].classList.contains("cooldown")) {
-                    info = -1
-                    return false
-                }
-                else {
-                    info = {id: node.children[0].getAttribute("data-ability"), name: node.title, node:node}
-                    return false
-                }
+                if(node.children[0].classList.contains("cooldown")) info = -1
+                else info = {id: node.children[0].getAttribute("data-ability"), name: node.title, node:node}
+                break
             }
         }
-    })
+    }
 
     return info
 }
@@ -755,7 +769,7 @@ function deleteSet(i) {
         sets[i] = nullset
         setData("bdsets")
         updateBar()
-        console.log(`Set ${i} deleted.`)
+        console.log(`[BSS] Set ${i} deleted.`)
     }
     return select
 }
@@ -848,16 +862,79 @@ const obelisktags = [
     "_brute",
     "_sway"
 ]
+const guildmap = {
+    "_order": "Order",
+    "_thief": "Thieves",
+    "_awakened": "Awakened",
+    "_seekers": "Seekers",
+    "_brute": "Brutes",
+    "_sway": "Sway"
+}
+const guildNameMap = []
 function isObelisk() {
     let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
     let url = p2.style.backgroundImage
-    obelisktags.forEach(tag => {
-        if(url.includes(tag)) return true
-    })
-    return false
+    let res = null
+    for(const tag of obelisktags){
+        if(url.includes(tag)) {
+            res = guildmap[tag]
+            break
+        }
+    }
+    return res
 }
-function isMaxReward() {
+//checks if item limit has been reached today and stores data if so
+function handleItemLimit() {
+    let limit = getData("bditemlimit")
+    let date = getDate()
 
+    //if we haven't hit item limit yet, observe for it
+    if(limit != date) {
+        console.log("[BSS] Enabled scanning for item limit.")
+        let loot = $("#arenacontainer #bdPopupGeneric-winnar #bd_rewardsloot")[0]
+        const lootObs = new MutationObserver(mutations => {
+            for(const mutation of mutations) {
+                if(hitItemLimit()) {
+                    setData("bditemlimit", date)
+                    highlightItemLimit()
+                    console.log("[BSS] Item limit reached and recorded.")
+                    lootObs.disconnect()
+                    break
+                }
+            }
+        })
+        lootObs.observe(loot, {childList: true, subtree: true})
+    }
+    //otherwise deal with item limit stuff
+    else {
+        console.log("[BSS] Item limit previously reached.")
+        highlightItemLimit()
+    }
+}
+function hitItemLimit() {
+    return $("#arenacontainer #bdPopupGeneric-winnar #bd_rewardsloot")[0].innerHTML
+        .includes(`* You have reached the item limit for today! You can continue to fight, but no more items can be earned.`)
+}
+function highlightItemLimit() {
+    //doesnt highlight in obelisk fights
+    if(HIGHLIGHT_MAX_REWARDS && !isObelisk()) {
+        let win = $("#arenacontainer #bdPopupGeneric-winnar")[0]
+        let msg = document.createElement("div")
+        win.style.backgroundColor = "#D0EDCA"
+        msg.innerHTML = "<b>You have reached the maximum item limit!</b>"
+        win.querySelector("#bd_rewards").appendChild(msg)
+    }
+}
+function addObeliskContribution() {
+    let obelisk = isObelisk()
+    if(isObelisk != null) {
+        let win = $("#arenacontainer #bdPopupGeneric-winnar")[0]
+        let msg = document.createElement("div")
+        if(obelisk.slice(-1) == 's') var plural = "have"
+        else plural = "has"
+        msg.innerHTML = `<b>Your contributions against The ${obelisk} ${plural} been recorded.</b>`
+        win.querySelector("#bd_rewards").appendChild(msg)
+    }
 }
 function is2Player() {
     let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
@@ -868,6 +945,10 @@ function is2Player() {
 //helpers
 function clone(data) {
     return JSON.parse(JSON.stringify(data))
+}
+
+function getDate() {
+    return new Date().toLocaleString("en-US", {timeZone: "PST"}).slice(0, 10).replace(",","")
 }
 
 function getItemURL(node, ability=false) {
