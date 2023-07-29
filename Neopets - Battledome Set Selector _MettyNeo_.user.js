@@ -218,8 +218,11 @@ function addBar() {
                     fillBar(bar)
                 }
                 if(autofilled < getRoundCount()) {
-                    autofilled = getRoundCount()
-                    setDefault()
+                    //autofill doesnt apply when obelisk limit is in place
+                    if(!isObelisk() || getData("bditemlimit") != getDate()) {
+                        autofilled = getRoundCount()
+                        setDefault()
+                    }
                 }
                 break
             }
@@ -931,7 +934,7 @@ function highlightItemLimit() {
     if(HIGHLIGHT_MAX_REWARDS && !isObelisk()) {
         let win = $("#arenacontainer #bdPopupGeneric-winnar")[0]
         let msg = document.createElement("div")
-        win.style.backgroundColor = "#D0EDCA"
+        win.getElementsByClassName("middle")[0].style.backgroundColor = "#D0EDCA"
         msg.innerHTML = "<b>You have reached the maximum item limit!</b>"
         win.querySelector("#bd_rewards").appendChild(msg)
     }
