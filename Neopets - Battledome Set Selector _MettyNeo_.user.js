@@ -9,7 +9,10 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-const REWARD_POPUP_DELAY = 250 //in ms
+//TO-DO: disable containers from being made and display message over bar during 2p and obelisk battles
+//maybe disable it after the 15 games?
+
+const REWARD_POPUP_DELAY = 750 //in ms
 
 //==========
 // style css
@@ -588,9 +591,7 @@ function clearSlots() {
 async function pressFinalSkip() {
     delay(REWARD_POPUP_DELAY).then(() => {
         let button = $("#arenacontainer #skipreplay")[0]
-        if(!button.classList.contains("replay")) {
-            button.click()
-        }
+        button.click()
     })
 }
 
