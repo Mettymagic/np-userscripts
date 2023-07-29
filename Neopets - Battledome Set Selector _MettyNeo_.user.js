@@ -4,6 +4,8 @@
 // @author       Metamagic
 // @version      1.4
 // @match        https://www.neopets.com/dome/arena.phtml
+// @grant GM_setValue
+// @grant GM_getValue
 // ==/UserScript==
 
 // Trans rights are human rights ^^
@@ -163,10 +165,10 @@ const green = [123,199,88]
 const yellow = [249,204,14]
 const magenta = [179,89,212]
 const gray = [99,99,99]
+const colormap = [red,blue,green,magenta,yellow]
 
 const nullset = {set:null, name:null, default:null}
 const nullautofill = {turn1:null, turn2:null, default:null}
-const colormap = [red,blue,green,magenta,yellow]
 
 //const hovermult = 0.875 //becomes darker when hovered over
 
@@ -241,19 +243,22 @@ function addBar() {
 //checks to see if bar should be populated before doing that
 function fillBar(bar) {
     if(isObelisk()) {
+        console.log("Obelisk battle detected, Battledome Set Selector disabled.")
         bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
     }
     else if(is2Player()) {
+        console.log("2P battle detected, BSS disabled.")
         bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i><i><small>League regulations require you to be on your own in these battles. May fate be by your side.</small></i>"
     }
     else {
+        console.log("Populating BSS bar.")
         populateBar(bar)
     }
 }
 
 function populateBar(bar) {
     //puts each sets container on the bar
-    let bdsetdata = getStoredSet()
+    let bdsetdata = getData("bdsets")
     bdsetdata.forEach((bdset, index) => {
         let set = JSON.parse(bdset)
         //main container of a set
@@ -298,7 +303,7 @@ function populateBar(bar) {
 }
 
 //main button to select set
-function makeSetButton(name, itemurls) {
+function makeSetButton(name, itemurls, i) {
     //null name means empty set
 
     //button
@@ -313,7 +318,7 @@ function makeSetButton(name, itemurls) {
         button.setAttribute("item1", itemurls[0])
         button.setAttribute("item2", itemurls[1])
         button.setAttribute("ability", itemurls[2])
-        button.addEventListener("click", function(){useSet(itemurls[0], itemurls[1], itemurls[2])})
+        button.addEventListener("click", function(){useSet(itemurls[0], itemurls[1], itemurls[2], i)})
     }
 
     //icons on top of button
@@ -355,7 +360,7 @@ function makeSaveButton(i) {
 function makeSettingsButton(i) {
     let button = document.createElement("div")
     button.classList.add("bdsetoption", "bdbarclickable", "bdbartext")
-    if(getStoredSet(i).name != null) {
+    if(getData("bdsets", i).name != null) {
         button.classList.add("activeoption")
         button.addEventListener("click", function(){makeSettingsMenu(i)})
     }
@@ -371,7 +376,7 @@ function makeSettingsButton(i) {
 function makeSettingsMenu(i) {
     closeSettingsMenus() //closes other menus
 
-    let set = getStoredSet(i)
+    let set = getData("bdsets", i)
     let isEmptySet = JSON.stringify(set) == JSON.stringify(nullset)
 
     //menu box
@@ -469,7 +474,7 @@ function closeSettingsMenus(save, i) {
     //save changes
     if(save) {
         //check for differences
-        let oldset = getStoredSet(i)
+        let oldset = getData("bdsets", i)
         let name = $("#bdsettingsmenu #setname")[0].value
         let autofill = $("#bdsettingsmenu #setautofill")[0].value
         //if no differences, do nothing
@@ -488,7 +493,7 @@ function closeSettingsMenus(save, i) {
 }
 
 function createSelect(i, set) {
-    let afset = JSON.parse(window.localStorage.getItem("bdautofill") || JSON.stringify(nullautofill))
+    let afset = getData("bdautofill")
 
     let defselect = document.createElement("SELECT")
     defselect.id = "setautofill"
@@ -527,7 +532,7 @@ function createSelect(i, set) {
 //=====================
 
 //selects items from saved set
-function useSet(item1, item2, ability) {
+function useSet(item1, item2, ability, i) {
     //clears slots before selecting
     clearSlots()
     let error = false //doesnt check rest of slots if error encountered
@@ -545,11 +550,13 @@ function useSet(item1, item2, ability) {
 
     //makes fight button active
     $("#arenacontainer #fight")[0].classList.remove("inactive")
+
+    console.log(`Set ${i} applied.`)
 }
 
 //save current selection to set
 function saveNewSet(i) {
-    let oldset = getStoredSet(i)
+    let oldset = getData("bdsets", i)
     let newset = getCurrentItems()
 
     //if the new set is empty
@@ -580,6 +587,7 @@ function saveNewSet(i) {
     }
 
     updateStoredSet(i, bdset)
+    console.log(`Set slot ${i} saved.`)
     updateBar()
 }
 
@@ -605,6 +613,7 @@ function clearSlots() {
 async function pressFinalSkip() {
     delay(REWARD_POPUP_DELAY).then(() => {
         let button = $("#arenacontainer #skipreplay")[0]
+        console.log("Skipping final animation")
         button.click()
     })
 }
@@ -612,19 +621,22 @@ async function pressFinalSkip() {
 //selects the default set
 function setDefault() {
     let round = getRoundCount()
-    let autofill = JSON.parse(window.localStorage.getItem("bdautofill") || JSON.stringify(nullautofill))
+    let autofill = getData("bdautofill")
 
     if(round == 1 && autofill.turn1 != null) {
-        let set = getStoredSet(autofill.turn1).set
-        useSet(set[0],set[1],set[2])
+        let set = getData("bdsets", autofill.turn1).set
+        useSet(set[0],set[1],set[2], autofill.turn1)
+        console.log(`Set ${autofill.turn1} autofilled.`)
     }
     else if(round == 2 && autofill.turn2 != null) {
-        let set = getStoredSet(autofill.turn2).set
-        useSet(set[0],set[1],set[2])
+        let set = getData("bdsets", autofill.turn2).set
+        useSet(set[0],set[1],set[2], autofill.turn2)
+        console.log(`Set ${autofill.turn2} autofilled.`)
     }
     else if(autofill.default != null){
-        let set = getStoredSet(autofill.default).set
-        useSet(set[0],set[1],set[2])
+        let set = getData("bdsets", autofill.default).set
+        useSet(set[0],set[1],set[2], autofill.default)
+        console.log(`Set ${autofill.default} autofilled.`)
     }
 }
 
@@ -739,10 +751,11 @@ function getCurrentItems() {
 function deleteSet(i) {
     let select = window.confirm("WARNING: Are you sure you want to delete this set?")
     if(select) {
-        let sets = getStoredSet()
-        sets[i] = JSON.stringify(nullset)
-        window.localStorage.setItem("bdsets", JSON.stringify(sets))
+        let sets = getData("bdsets")
+        sets[i] = nullset
+        setData("bdsets")
         updateBar()
+        console.log(`Set ${i} deleted.`)
     }
     return select
 }
@@ -750,12 +763,12 @@ function deleteSet(i) {
 //updates set at index i
 function updateStoredSet(i, newset, updateAutofill=-1) {
     //updates stored set
-    let sets = getStoredSet()
-    sets[i] = JSON.stringify(newset)
-    window.localStorage.setItem("bdsets", JSON.stringify(sets))
+    let sets = getData("bdsets")
+    sets[i] = newset
+    setData("bdsets", sets)
     //updates autofill
     if(updateAutofill != -1) {
-        let autofill = JSON.parse(window.localStorage.getItem("bdautofill") || JSON.stringify(nullautofill))
+        let autofill = getData("bdautofill")
         //remove index from autofill
         if(autofill.turn1 == i) autofill.turn1 = null
         else if (autofill.turn2 == i) autofill.turn2 = null
@@ -773,17 +786,45 @@ function updateStoredSet(i, newset, updateAutofill=-1) {
                 break;
         }
         //saves new autofill
-        window.localStorage.setItem("bdautofill", JSON.stringify(autofill))
+        setData("bdautofill", autofill)
     }
     updateBar()
 }
 
-function getStoredSet(i = null) {
-    let ns = JSON.stringify(nullset)
-    if(i != null)
-        return JSON.parse(JSON.parse(window.localStorage.getItem("bdsets") || JSON.stringify([ns,ns,ns,ns,ns]))[i])
-    else
-        return JSON.parse(window.localStorage.getItem("bdsets") || JSON.stringify([ns,ns,ns,ns,ns]))
+//keeps support from cookies
+function getData(tag, i = null) {
+    if(tag == "bdsets") {
+        let ns = clone([nullset,nullset,nullset,nullset,nullset])
+
+        //still supports browser cookies to prevent set wipes
+        let cookie = window.localStorage.getItem("bdsets")
+        if(cookie != null) {
+            if(i != null) return JSON.parse(JSON.parse(cookie)[i])
+            else {
+                let arr = JSON.parse(cookie)
+                for(i = 0; i < 5; i++) {
+                    arr[i] = JSON.parse(arr[i])
+                }
+                return arr
+            }
+        }
+        else {
+            if(i != null) return GM_getValue("bdsets", ns)[i]
+            else return GM_getValue("bdsets", ns)
+        }
+    }
+    else if(tag == "bdautofill") {
+        return GM_getValue("bdautofill", clone(nullautofill))
+    }
+    else {
+        GM_getValue(tag, null)
+    }
+}
+
+//clears cookies if they exist to convert over to script storage
+function setData(tag, value) {
+    window.localStorage.removeItem(tag)
+    GM_setValue(tag, value)
 }
 
 //================
@@ -825,6 +866,10 @@ function is2Player() {
 }
 
 //helpers
+function clone(data) {
+    return JSON.parse(JSON.stringify(data))
+}
+
 function getItemURL(node, ability=false) {
     //for some reason the abilitys class isnt changed to selected
     if(!node.classList.contains("selected") && ability == false) return null
