@@ -13,7 +13,7 @@
 
 const HIGHLIGHT_MAX_REWARDS = true //makes the victory box red tinted if you're maxed on items. set to false to disable
 const SKIP_FINAL_ANIMATION = true //skips the final animation, pulling up the victory prompt without having to manually skip the animation. set to false to disable.
-const REWARD_POPUP_DELAY = 750 //delay (in ms) to wait before pulling up the victory menu. lower values might result in weird behavior.
+const REWARD_POPUP_DELAY = 250 //delay (in ms) to wait before pulling up the victory menu.
 
 //==========
 // style css
