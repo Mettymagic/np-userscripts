@@ -252,7 +252,7 @@ function fillBar(bar) {
         //havent hit item limit yet today, not blocked
         if(limit != date) {
             if(firstLoad) {
-                console.log("[BSS] Obelisk battle permitted, daily item limit not reached.")
+                console.log("[BSS] Obelisk battle detected but daily item limit not reached, BSS permitted.")
                 console.log("[BSS] Populating BSS bar.")
             }
             else console.log("[BSS] Refreshing BSS bar.")
@@ -261,7 +261,7 @@ function fillBar(bar) {
         }
         //hit item limit today, blocked
         else {
-            console.log("[BSS] Obelisk battle detected, Battledome Set Selector disabled.")
+            console.log("[BSS] Obelisk battle beyond daily limit detected, BSS disabled.")
             bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
         }
         if(firstLoad) addObeliskContribution()
@@ -831,7 +831,7 @@ function getData(tag, i = null) {
         return GM_getValue("bdautofill", clone(nullautofill))
     }
     else {
-        GM_getValue(tag, null)
+        return GM_getValue(tag, null)
     }
 }
 
