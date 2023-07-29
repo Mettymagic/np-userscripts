@@ -13,7 +13,7 @@
 
 const HIGHLIGHT_MAX_REWARDS = true //makes the victory box red tinted if you're maxed on items. set to false to disable
 const SKIP_FINAL_ANIMATION = true //skips the final animation, pulling up the victory prompt without having to manually skip the animation. set to false to disable.
-const REWARD_POPUP_DELAY = 1000 //delay (in ms) to wait before pulling up the victory menu. lower values might result in weird behavior. min. 250ms, 1000ms recommended.
+const REWARD_POPUP_DELAY = 750 //delay (in ms) to wait before pulling up the victory menu. lower values might result in weird behavior.
 
 //==========
 // style css
@@ -574,6 +574,7 @@ function useSet(item1, item2, ability, i) {
 
     //makes fight button active
     $("#arenacontainer #fight")[0].classList.remove("inactive")
+    $("#arenacontainer #fight")[0].classList.add("caction")
 
     console.log(`[BSS] Set ${i} applied.`)
 }
@@ -638,7 +639,12 @@ async function pressFinalSkip() {
     delay(REWARD_POPUP_DELAY).then(() => {
         let button = $("#arenacontainer #skipreplay")[0]
         console.log("[BSS] Skipping final animation")
-        button.click()
+        if(button.classList.contains("replay"))
+        {
+            button.click()
+            delay(100).then(() => {button.click()})
+        }
+        else button.click()
     })
 }
 
