@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected.
 // @author       Metamagic
-// @version      1.3
+// @version      1.4
 // @match        https://www.neopets.com/dome/arena.phtml
 // ==/UserScript==
 
@@ -209,10 +209,11 @@ function addBar() {
     const obs1 = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             if(status.textContent == "Plan your next move..."){
+                //populates the bar
                 if(firstLoad) {
                     firstLoad = false
                     bar.innerHTML = ""
-                    populateBar(bar)
+                    fillBar(bar)
                 }
                 if(autofilled < getRoundCount()) {
                     autofilled = getRoundCount()
@@ -235,6 +236,19 @@ function addBar() {
         })
     })
     obs2.observe(hud, {childList: true, subtree: true})
+}
+
+//checks to see if bar should be populated before doing that
+function fillBar(bar) {
+    if(isObelisk()) {
+        bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
+    }
+    else if(is2Player()) {
+        bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i><i><small>League regulations require you to be on your own in these battles. May fate be by your side.</small></i>"
+    }
+    else {
+        populateBar(bar)
+    }
 }
 
 function populateBar(bar) {
@@ -707,7 +721,7 @@ function selectSlot(slot, item, n=1) {
 function updateBar() {
     let bar = $("#bdsetbar")[0]
     bar.innerHTML = ""
-    populateBar(bar)
+    fillBar(bar)
 }
 
 //returns array of currently selected stuff from arena
@@ -776,14 +790,41 @@ function getStoredSet(i = null) {
 // misc. functions
 //================
 
+//used for autofill
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
-
 function getRoundCount() {
     return $("#logheader #flround")[0].innerHTML
 }
 
+//used for legitimacy checks to disable in areas that give advantage
+const obelisktags = [
+    "_order",
+    "_thief",
+    "_awakened",
+    "_seekers",
+    "_brute",
+    "_sway"
+]
+function isObelisk() {
+    let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
+    let url = p2.style.backgroundImage
+    obelisktags.forEach(tag => {
+        if(url.includes(tag)) return true
+    })
+    return false
+}
+function isMaxReward() {
+
+}
+function is2Player() {
+    let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
+    if(p2.style.backgroundImage.includes("pets.neopets.com")) return true
+    else return false
+}
+
+//helpers
 function getItemURL(node, ability=false) {
     //for some reason the abilitys class isnt changed to selected
     if(!node.classList.contains("selected") && ability == false) return null
@@ -797,7 +838,6 @@ function getItemURL(node, ability=false) {
         }
     }
 }
-
 function getHex(color) {
     let hex = "#"
     color.forEach(c => {
