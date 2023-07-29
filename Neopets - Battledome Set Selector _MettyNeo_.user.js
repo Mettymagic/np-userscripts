@@ -646,6 +646,8 @@ async function pressFinalSkip() {
 function setDefault() {
     let round = getRoundCount()
     let autofill = getData("bdautofill")
+    console.log(autofill)
+    console.log(round)
 
     if(round == 1 && autofill.turn1 != null) {
         let set = getData("bdsets", autofill.turn1).set
@@ -828,7 +830,10 @@ function getData(tag, i = null) {
         }
     }
     else if(tag == "bdautofill") {
-        return GM_getValue("bdautofill", clone(nullautofill))
+        //still supports browser cookies to prevent set wipes
+        let cookie = window.localStorage.getItem("bdautofill")
+        if(cookie != null) return JSON.parse(cookie)
+        else return GM_getValue("bdautofill", clone(nullautofill))
     }
     else {
         return GM_getValue(tag, null)
