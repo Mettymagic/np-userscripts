@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Direct Link Display <MettyNeo>
-// @version      0.2
+// @version      0.3
 // @description  Gives the results from direct links a much cleaner display and tracks # of coconut shy refreshes
 // @author       Metamagic
 // @match        https://www.neopets.com/halloween/process_cocoshy.phtml?coconut=*
@@ -141,6 +141,23 @@ if(url.includes("/process_cocoshy.phtml")) {
     GM_setValue("cscount", count)
 }
 
+//runs on page load
+document.addEventListener("DOMContentLoaded", function() {
+    //fuck stackpath - it occasionallyu breaks parts of the script.
+    if(!document.body.innerHTML.includes("Neopets - Checking Cookies")) {
+        addCSS()
+        let html = document.body.innerHTML
+        console.log(html)
+        let results = createResultsBox()
+        let contents = results.querySelector("#contents")
+
+        if(url.includes("/process_cocoshy.phtml")) displayCocoShy(results, contents, html)
+        else if(url.includes("/process_strtest.phtml")) displayStrTest(results, contents, html)
+        else if(url.includes("/WheelService.spinWheel/")) displayWheel(results, contents, html, wheelmap[url.match(/^.*([12345]).*/)[1]])
+        else if(url.includes("ncmall.neopets.com/games/giveaway/process_giveaway.phtml")) displayScarab(results, contents, html)
+    }
+})
+
 function getTime(date = new Date(), zeroTime = false) {
     let d = date.toLocaleString("en-US", {timeZone: "PST"}).split(",")
     if(zeroTime) return {date: d[0].trim(), time: "12:00:00 AM NST"}
@@ -161,19 +178,6 @@ function getFinishTime(ms=0, resetOnNewDay=true) {
 // direct link display
 //====================
 
-//runs on page load
-document.addEventListener("DOMContentLoaded", function() {
-    addCSS()
-    let html = document.body.innerHTML
-    console.log(html)
-    let results = createResultsBox()
-    let contents = results.querySelector("#contents")
-
-    if(url.includes("/process_cocoshy.phtml")) displayCocoShy(results, contents, html)
-    else if(url.includes("/process_strtest.phtml")) displayStrTest(results, contents, html)
-    else if(url.includes("/WheelService.spinWheel/")) displayWheel(results, contents, html, wheelmap[url.match(/^.*([12345]).*/)[1]])
-    else if(url.includes("ncmall.neopets.com/games/giveaway/process_giveaway.phtml")) displayScarab(results, contents, html)
-})
 
 function createResultsBox() {
     let cont = document.createElement("div")
