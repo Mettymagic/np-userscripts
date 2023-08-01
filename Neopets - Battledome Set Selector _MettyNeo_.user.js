@@ -2,18 +2,18 @@
 // @name         Neopets - Battledome Set Selector <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as skipping the final battle animation to pull up the victory screen without prompt.
 // @author       Metamagic
-// @version      1.5
+// @version      1.6
 // @match        https://www.neopets.com/dome/arena.phtml
 // @grant GM_setValue
 // @grant GM_getValue
+// @grant unsafeWindow
 // ==/UserScript==
 
 // Trans rights are human rights ^^
 // metty says hi
 
 const HIGHLIGHT_MAX_REWARDS = true //makes the victory box red tinted if you're maxed on items. set to false to disable
-const SKIP_FINAL_ANIMATION = true //skips the final animation, pulling up the victory prompt without having to manually skip the animation. set to false to disable.
-const REWARD_POPUP_DELAY = 250 //delay (in ms) to wait before pulling up the victory menu.
+const ANIMATION_DELAY = 0 //delay (in ms) before skipping animations. 0 = no animation, -1 = disable animation skip
 
 //==========
 // style css
@@ -217,13 +217,19 @@ function addBar() {
                     bar.innerHTML = ""
                     fillBar(bar)
                 }
+                //skips animation if not obelisk
+                else if(!limitObelisk()){
+                    skipAnimation()
+                }
                 if(autofilled < getRoundCount()) {
                     //autofill doesnt apply when obelisk limit is in place
                     if(!limitObelisk()) {
                         autofilled = getRoundCount()
                         setDefault()
+                        if(firstLoad) skipAnimation(true) //fuck neopets for this one frfr
                     }
                 }
+                firstLoad = false
                 break
             }
         }
@@ -231,12 +237,12 @@ function addBar() {
     statusObs.observe(status, {childList: true})
 
     //checks hud for when battle is over, disables if obelisk limit in place
-    if(SKIP_FINAL_ANIMATION && !limitObelisk()) {
+    if(ANIMATION_DELAY >= 0 && !limitObelisk()) {
         let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
         const hpObs = new MutationObserver(mutations => {
             for(const mutation of mutations) {
                 if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
-                    pressFinalSkip()
+                    skipAnimation()
                     hpObs.disconnect()
                     break
                 }
@@ -279,7 +285,6 @@ function fillBar(bar) {
         else console.log("[BSS] Refreshing BSS bar.")
         populateBar(bar)
     }
-    firstLoad = false
 }
 
 function populateBar(bar) {
@@ -582,10 +587,6 @@ function useSet(item1, item2, ability, i) {
     //ability
     if(ability != null && !error) selectSlot($("#arenacontainer #p1am")[0], ability)
 
-    //makes fight button active
-    $("#arenacontainer #fight")[0].classList.remove("inactive")
-    $("#arenacontainer #fight")[0].classList.add("caction")
-
     console.log(`[BSS] Set ${i} applied.`)
 }
 
@@ -645,17 +646,24 @@ function clearSlots() {
 // helper functions
 //=================
 
-async function pressFinalSkip() {
-    delay(REWARD_POPUP_DELAY).then(() => {
-        let button = $("#arenacontainer #skipreplay")[0]
-        console.log("[BSS] Skipping final animation")
-        if(button.classList.contains("replay"))
-        {
-            button.click()
-            delay(100).then(() => {button.click()})
-        }
-        else button.click()
-    })
+async function skipAnimation(ignoreDelay = false) {
+    let d = ANIMATION_DELAY
+    if(ignoreDelay) d = 0
+
+    if(d == 0) {
+        pressSkipButton()
+        if(firstLoad) console.log(`[BSS] First animation cancelled.`)
+        else console.log(`[BSS] Animation cancelled.`)
+    }
+    else if(d > 0) {
+        setTimeout(pressSkipButton, d)
+        setTimeout(() => {console.log(`[BSS] Animation skipped after ${d}ms.`)}, d)
+    }
+}
+
+function pressSkipButton() {
+    let button = $("#arenacontainer #skipreplay")[0]
+    button.click()
 }
 
 //selects the default set
@@ -663,21 +671,20 @@ function setDefault() {
     let round = getRoundCount()
     let autofill = getData("bdautofill")
 
-    if(round == 1 && autofill.turn1 != null) {
-        let set = getData("bdsets", autofill.turn1).set
-        useSet(set[0],set[1],set[2], autofill.turn1)
-        console.log(`[BSS] Set ${autofill.turn1} autofilled.`)
+    if(round == 1 && autofill.turn1 != null) applyDefaultSet(autofill.turn1)
+    else if(round == 2 && autofill.turn2 != null) applyDefaultSet(autofill.turn2)
+    else if(autofill.default != null) applyDefaultSet(autofill.default)
+}
+
+function applyDefaultSet(i) {
+    let set = getData("bdsets", i).set
+    if(set == null) {
+        setData("bdautofill", nullautofill)
+        window.alert("BSS data corrupted, clearing autofill settings.\nSorry for any inconvenience.")
+        return
     }
-    else if(round == 2 && autofill.turn2 != null) {
-        let set = getData("bdsets", autofill.turn2).set
-        useSet(set[0],set[1],set[2], autofill.turn2)
-        console.log(`[BSS] Set ${autofill.turn2} autofilled.`)
-    }
-    else if(autofill.default != null){
-        let set = getData("bdsets", autofill.default).set
-        useSet(set[0],set[1],set[2], autofill.default)
-        console.log(`[BSS] Set ${autofill.default} autofilled.`)
-    }
+    useSet(set[0],set[1],set[2], i)
+    console.log(`[BSS] Set ${i} autofilled.`)
 }
 
 //gets the selection id from an item's image url
@@ -864,10 +871,6 @@ function setData(tag, value) {
 // misc. functions
 //================
 
-//used for autofill
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms))
-}
 function getRoundCount() {
     return $("#logheader #flround")[0].innerHTML
 }
@@ -910,7 +913,7 @@ function handleItemLimit() {
     //if we haven't hit item limit yet, observe for it
     if(limit != date) {
         console.log("[BSS] Enabled scanning for item limit.")
-        let loot = $("#arenacontainer #bdPopupGeneric-winnar #bd_rewardsloot")[0]
+        let loot = $("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0]
         const lootObs = new MutationObserver(mutations => {
             for(const mutation of mutations) {
                 if(hitItemLimit()) {
@@ -931,7 +934,7 @@ function handleItemLimit() {
     }
 }
 function hitItemLimit() {
-    return $("#arenacontainer #bdPopupGeneric-winnar #bd_rewardsloot")[0].innerHTML
+    return $("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0].innerHTML
         .includes(`* You have reached the item limit for today! You can continue to fight, but no more items can be earned.`)
 }
 function highlightItemLimit() {
