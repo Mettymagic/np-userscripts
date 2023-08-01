@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as skipping the final battle animation to pull up the victory screen without prompt.
 // @author       Metamagic
-// @version      1.4
+// @version      1.5
 // @match        https://www.neopets.com/dome/arena.phtml
 // @grant GM_setValue
 // @grant GM_getValue
@@ -285,6 +285,13 @@ function fillBar(bar) {
 function populateBar(bar) {
     //puts each sets container on the bar
     let bdsetdata = getData("bdsets")
+    //in cases where setdata gets set to undefined/null by accident
+    if(!bdsetdata) {
+        setData("bdsets", clone([nullset,nullset,nullset,nullset,nullset]))
+        setData("bdautofill", nullautofill)
+        bdsetdata = getData("bdsets")
+        window.alert("BSS data corrupted, clearing sets.\nSorry for any inconvenience.")
+    }
     bdsetdata.forEach((set, index) => {
         //main container of a set
         let container = document.createElement("div"), options = document.createElement("div")
@@ -655,8 +662,6 @@ async function pressFinalSkip() {
 function setDefault() {
     let round = getRoundCount()
     let autofill = getData("bdautofill")
-    console.log(autofill)
-    console.log(round)
 
     if(round == 1 && autofill.turn1 != null) {
         let set = getData("bdsets", autofill.turn1).set
@@ -778,7 +783,7 @@ function deleteSet(i) {
     if(select) {
         let sets = getData("bdsets")
         sets[i] = nullset
-        setData("bdsets")
+        setData("bdsets", sets)
         updateBar()
         console.log(`[BSS] Set ${i} deleted.`)
     }
