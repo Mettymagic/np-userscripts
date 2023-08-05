@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Direct Link Display <MettyNeo>
-// @version      0.3
+// @version      0.4
 // @description  Gives the results from direct links a much cleaner display and tracks # of coconut shy refreshes
 // @author       Metamagic
 // @match        https://www.neopets.com/halloween/process_cocoshy.phtml?coconut=*
@@ -10,6 +10,7 @@
 // @run-at       document-start
 // @grant GM_setValue
 // @grant GM_getValue
+// @grant GM_deleteValue
 // ==/UserScript==
 
 function addCSS() {
@@ -129,21 +130,27 @@ const url = window.location.href
 // coconut shy refresh tracker
 //============================
 
+//increments coconut shy on each refresh
 if(url.includes("/process_cocoshy.phtml")) {
     //resets count on new day
     if(GM_getValue("day", null) != getTime().date) {
-        GM_setValue("cscount", 0)
+        GM_setValue("cscount", 1)
         GM_setValue("day", getTime().date)
     }
-    //increments refresh count
-    let count = GM_getValue("cscount", 0)
-    if(count < 20) count++
-    GM_setValue("cscount", count)
+
+    //subsequent refreshes
+    addEventListener("beforeunload", (e) => {
+        //increments refresh count
+        let count = GM_getValue("cscount", 1) //first load = count of 1
+        if(count < 20) count++
+        GM_setValue("cscount", count)
+    })
 }
 
 //runs on page load
-document.addEventListener("DOMContentLoaded", function() {
-    //fuck stackpath - it occasionallyu breaks parts of the script.
+(function() {
+    //GM_deleteValue("cscount") //enable to reset coconut shy counter, for testing
+    //fuck stackpath - it occasionally breaks parts of the script.
     if(!document.body.innerHTML.includes("Neopets - Checking Cookies")) {
         addCSS()
         let html = document.body.innerHTML
@@ -156,7 +163,8 @@ document.addEventListener("DOMContentLoaded", function() {
         else if(url.includes("/WheelService.spinWheel/")) displayWheel(results, contents, html, wheelmap[url.match(/^.*([12345]).*/)[1]])
         else if(url.includes("ncmall.neopets.com/games/giveaway/process_giveaway.phtml")) displayScarab(results, contents, html)
     }
-})
+    else console.log("stackpath moment")
+})()
 
 function getTime(date = new Date(), zeroTime = false) {
     let d = date.toLocaleString("en-US", {timeZone: "PST"}).split(",")
@@ -208,6 +216,7 @@ function createResultsBox() {
 }
 
 function displayCocoShy(results, contents, html) {
+    //fun fact i actually won a coconut while developing this script. saved the result below for testing.
     //html = `points=10000&amp;totalnp=4097858&amp;success=4&amp;prize_id=26874&amp;error=Ach%21+See%2C+the+game+isn%27t+rigged+after+all%21++Tell+your+friends%2C+kid%21`
     //out of throws
     if(html.includes("success=0")) {
@@ -222,7 +231,7 @@ function displayCocoShy(results, contents, html) {
 
     let countdiv = document.createElement("div")
     countdiv.classList.add("count")
-    let count = Math.min(GM_getValue("cscount", 0), 20)
+    let count = Math.min(GM_getValue("cscount", 1), 20)
     countdiv.innerHTML = "<b>(Count:</b>&nbsp"+count+"<b>)</b>"
     results.children[0].appendChild(countdiv)
 
@@ -247,6 +256,7 @@ function displayCocoShy(results, contents, html) {
 
         contents.appendChild(npsummary)
     }
+    console.log("[DLD] Coconut Shy displayed.")
 }
 
 function displayStrTest(results, contents, html) {
