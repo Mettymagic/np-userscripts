@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.0
+// @version      1.1
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -362,7 +362,7 @@ function applyMaxBetValue() {
 }
 
 function addNeoLinks() {
-    let cont = $("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0].children[0].children[0]
+    let cont = $("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]
     let linkCont = document.createElement("div")
     linkCont.classList.add("css-cpjzy9")
     let linkCont2 = document.createElement("div")
