@@ -3,6 +3,7 @@
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as skipping the final battle animation to pull up the victory screen without prompt.
 // @author       Metamagic
 // @version      1.6
+// @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/arena.phtml
 // @grant GM_setValue
 // @grant GM_getValue

@@ -7,6 +7,7 @@
 // @match        https://www.neopets.com/halloween/strtest/process_strtest.phtml
 // @match        https://www.neopets.com/amfphp/json.php/WheelService.spinWheel/*
 // @match        http://ncmall.neopets.com/games/giveaway/process_giveaway.phtml
+// @icon         https://i.imgur.com/RnuqLRm.png
 // @run-at       document-start
 // @grant GM_setValue
 // @grant GM_getValue

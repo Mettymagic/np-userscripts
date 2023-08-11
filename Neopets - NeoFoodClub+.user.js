@@ -8,6 +8,7 @@
 // @match        https://www.neopets.com/pirates/process_foodclub.phtml?*&type=bet*
 // @match        https://www.neopets.com/pirates/foodclub.phtml?type=current_bets*
 // @require      https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js
+// @icon         https://i.imgur.com/RnuqLRm.png
 // @grant GM_setValue
 // @grant GM_getValue
 // @grant GM_deleteValue
