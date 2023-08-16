@@ -7,7 +7,8 @@
 // @match        https://www.neopets.com/dome/arena.phtml
 // @grant GM_setValue
 // @grant GM_getValue
-// @grant unsafeWindow
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
 // ==/UserScript==
 
 // Trans rights are human rights ^^

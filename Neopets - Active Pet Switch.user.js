@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch <MettyNeo>
-// @version      1.3
-// @description  Adds a button to the sidebar that lets you easily switch your active pet.
+// @version      1.4
+// @description  Adds a button to the sidebar that lets you easily switch your active pet. Also adds some relevant fishing vortex quality of life.
 // @author       Metamagic
 // @match        *://*.neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -9,6 +9,8 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_addValueChangeListener
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Active%20Pet%20Switch.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Active%20Pet%20Switch.user.js
 // ==/UserScript==
 
 // Trans rights are human rights ^^
@@ -18,6 +20,8 @@
 const HOME_DATA_TIMEOUT = 24
 //displays the table on the fishing result page
 const FISHING_DISPLAY = true
+//for my mom who keeps accidentally clicking it then getting confused
+const REMOVE_CAST_BUTTON = true
 
 //==============
 // main function
@@ -32,26 +36,13 @@ if(url.includes("neopets.com/home")) {
     getPetData(document) //always update the data while we're here
 }
 
-if(url.includes("water/fishing.phtml") && FISHING_DISPLAY) {
+if(url.includes("water/fishing.phtml")) {
     if(Array.from($("#container__2020 > p")).some((p)=>{return p.innerHTML == "You reel in your line and get..."})) {
-        let table = document.createElement("table")
-        table.classList.add("activetable")
-        table.style.margin = "auto"
-        table.style.marginTop = "-30px"
-        $("#container__2020")[0].appendChild(table)
-        //revalidates if it needs to
-        if(checkForUpdate()) {
-            let load = document.createElement("div")
-            load.innerHTML = "( Fetching pet data ... )"
-            menu.appendChild(load)
-            GM_addValueChangeListener("waitfordata", function() {
-                populateTable()
-                menu.removeChild(load)
-            })
-            requestHomePage()
+        if(FISHING_DISPLAY) addFishingTable()
+        if(REMOVE_CAST_BUTTON) {
+            $('#container__2020 > a[href="/water/fishing.phtml"]').css("display","none")
+            $("#container__2020 > br:last-of-type").css("display","none")
         }
-        //otherwise populates immediately
-        else populateTable()
     }
 }
 
@@ -170,6 +161,36 @@ function populateTable() {
         }
     }
     console.log(`[APS] Table populated with ${petList.length} pets.`)
+}
+
+function addFishingTable() {
+    let menu = document.createElement("div")
+    menu.classList.add("vertical")
+    $("#container__2020")[0].appendChild(menu)
+
+    let header = document.createElement("div")
+    header.classList.add("activetableheader")
+    header.innerHTML = `<b>Fish With:</b>`
+    menu.appendChild(header)
+
+    let table = document.createElement("table")
+    table.classList.add("activetable")
+    table.style.margin = "auto"
+    menu.appendChild(table)
+
+    //revalidates if it needs to
+    if(checkForUpdate()) {
+        let load = document.createElement("div")
+        load.innerHTML = "( Fetching pet data ... )"
+        menu.appendChild(load)
+        GM_addValueChangeListener("waitfordata", function() {
+            populateTable()
+            menu.removeChild(load)
+        })
+        requestHomePage()
+    }
+    //otherwise populates immediately
+    else populateTable()
 }
 
 //=====================
@@ -348,6 +369,12 @@ function addCSS() {
     }
 
     document.head.appendChild(document.createElement("style")).innerHTML = `
+        .vertical {
+            display: flex;
+            flex-direction: column;
+            margin: auto;
+            width: fit-content;
+        }
         #select-active-pet-menu {
             position: fixed;
             z-index: 100000;

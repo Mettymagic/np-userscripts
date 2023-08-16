@@ -12,6 +12,8 @@
 // @grant GM_setValue
 // @grant GM_getValue
 // @grant GM_deleteValue
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Direct%20Link%20Display.user.js
+// @updateURL   https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Direct%20Link%20Display.user.js
 // ==/UserScript==
 
 function addCSS() {

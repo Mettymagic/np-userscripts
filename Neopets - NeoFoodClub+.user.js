@@ -15,6 +15,8 @@
 // @grant GM_addValueChangeListener
 // @grant window.focus
 // @grant window.close
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20NeoFoodClub%2B.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20NeoFoodClub%2B.user.js
 // ==/UserScript==
 
 // Trans rights are human rights ^^
