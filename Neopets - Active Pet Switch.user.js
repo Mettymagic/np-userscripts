@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch <MettyNeo>
-// @version      1.4
+// @version      1.5
 // @description  Adds a button to the sidebar that lets you easily switch your active pet. Also adds some relevant fishing vortex quality of life.
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -119,48 +119,50 @@ function createMenu() {
         load.innerHTML = "( Fetching pet data ... )"
         menu.appendChild(load)
         GM_addValueChangeListener("waitfordata", function() {
-            populateTable()
+            populateTables()
             menu.removeChild(load)
         })
         requestHomePage()
     }
     //otherwise populates immediately
-    else populateTable()
+    else populateTables()
 }
 
-function populateTable() {
+function populateTables() {
     let petList = Object.values(GM_getValue("petlist", {}))
-    let table = $(".activetable")[0]
-    table.innerHTML = ""
-    let activePet = getActivePet()
+    let tables = Array.from($(".activetable"))
+    for(let table of tables) {
+        table.innerHTML = ""
+        let activePet = getActivePet()
 
-    for (let i = 0; i < 4; i++) { //4 rows
-        let row = table.insertRow()
-        for(let j = 0; j < 5; j++) { //5 per row
-            let index = i*5 + j
-            if(index < petList.length) {
-                let img = petList[index].img.withBG //300x300
-                let name = petList[index].name
+        for (let i = 0; i < 4; i++) { //4 rows
+            let row = table.insertRow()
+            for(let j = 0; j < 5; j++) { //5 per row
+                let index = i*5 + j
+                if(index < petList.length) {
+                    let img = petList[index].img.withBG //300x300
+                    let name = petList[index].name
 
-                let cell = row.insertCell()
-                cell.setAttribute("name", name)
-                //name = "test"
-                let d1 = document.createElement("div"), d2 = document.createElement("div")
-                d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
-                d1.style.width = "150px !important";
-                d1.style.height = "150px !important";
-                d2.innerHTML = name
-                cell.appendChild(d1)
-                cell.appendChild(d2)
-                if(activePet == name) cell.setAttribute("active", "")
-                else {
-                    cell.addEventListener("click", (event)=>{event.stopPropagation(); changeActivePet(name);})
-                    cell.style.cursor = "pointer"
+                    let cell = row.insertCell()
+                    cell.setAttribute("name", name)
+                    //name = "test"
+                    let d1 = document.createElement("div"), d2 = document.createElement("div")
+                    d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
+                    d1.style.width = "150px !important";
+                    d1.style.height = "150px !important";
+                    d2.innerHTML = name
+                    cell.appendChild(d1)
+                    cell.appendChild(d2)
+                    if(activePet == name) cell.setAttribute("active", "")
+                    else {
+                        cell.addEventListener("click", (event)=>{event.stopPropagation(); changeActivePet(name);})
+                        cell.style.cursor = "pointer"
+                    }
                 }
             }
         }
+        console.log(`[APS] Table populated with ${petList.length} pets.`)
     }
-    console.log(`[APS] Table populated with ${petList.length} pets.`)
 }
 
 function addFishingTable() {
@@ -177,20 +179,6 @@ function addFishingTable() {
     table.classList.add("activetable")
     table.style.margin = "auto"
     menu.appendChild(table)
-
-    //revalidates if it needs to
-    if(checkForUpdate()) {
-        let load = document.createElement("div")
-        load.innerHTML = "( Fetching pet data ... )"
-        menu.appendChild(load)
-        GM_addValueChangeListener("waitfordata", function() {
-            populateTable()
-            menu.removeChild(load)
-        })
-        requestHomePage()
-    }
-    //otherwise populates immediately
-    else populateTable()
 }
 
 //=====================
