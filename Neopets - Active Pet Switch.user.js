@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch <MettyNeo>
-// @version      1.2
+// @version      1.3
 // @description  Adds a button to the sidebar that lets you easily switch your active pet.
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -16,6 +16,8 @@
 
 //collected page data times out after this many hours (default: 1 day)
 const HOME_DATA_TIMEOUT = 24
+//displays the table on the fishing result page
+const FISHING_DISPLAY = true
 
 //==============
 // main function
@@ -28,6 +30,29 @@ if($("[class^='nav-pet-menu-icon']").length) isBeta = true
 
 if(url.includes("neopets.com/home")) {
     getPetData(document) //always update the data while we're here
+}
+
+if(url.includes("water/fishing.phtml") && FISHING_DISPLAY) {
+    if(Array.from($("#container__2020 > p")).some((p)=>{return p.innerHTML == "You reel in your line and get..."})) {
+        let table = document.createElement("table")
+        table.classList.add("activetable")
+        table.style.margin = "auto"
+        table.style.marginTop = "-30px"
+        $("#container__2020")[0].appendChild(table)
+        //revalidates if it needs to
+        if(checkForUpdate()) {
+            let load = document.createElement("div")
+            load.innerHTML = "( Fetching pet data ... )"
+            menu.appendChild(load)
+            GM_addValueChangeListener("waitfordata", function() {
+                populateTable()
+                menu.removeChild(load)
+            })
+            requestHomePage()
+        }
+        //otherwise populates immediately
+        else populateTable()
+    }
 }
 
 createMenuButton()
