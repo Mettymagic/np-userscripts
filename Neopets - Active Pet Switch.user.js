@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch <MettyNeo>
-// @version      1.1
+// @version      1.2
 // @description  Adds a button to the sidebar that lets you easily switch your active pet.
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -14,7 +14,8 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-const HOME_DATA_TIMEOUT = 120 //collected page data times out after this many minutes
+//collected page data times out after this many hours (default: 1 day)
+const HOME_DATA_TIMEOUT = 24
 
 //==============
 // main function
@@ -26,7 +27,7 @@ if($("[class^='nav-pet-menu-icon']").length) isBeta = true
 
 
 if(url.includes("neopets.com/home")) {
-    getHomeData(document)
+    getPetData(document) //always update the data while we're here
 }
 
 createMenuButton()
@@ -35,29 +36,31 @@ createMenuButton()
 // overhead
 //=========
 
-function requestHomeData() {
+function requestHomePage() {
     GM_setValue("waitfordata", true)
     $.get("https://www.neopets.com/home/", function(data, status){
         let doc = new DOMParser().parseFromString(data, "text/html")
-        getHomeData(doc)
+        getPetData(doc)
         console.log("[APS] Data successfully retrieved.")
         GM_setValue("waitfordata", false)
     })
 }
 
-function getHomeData(doc) {
-    let oldRef = GM_getValue("userref")
-    let ref = getUserRef(doc)
-    if(ref && oldRef != ref) GM_setValue("userref", ref)
+function checkForUpdate() {
+    //revalidates data if it times out or if username changes
+    if(new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000*60*60*HOME_DATA_TIMEOUT) console.log("[APS] Updating data for new day.")
+    else if(getUsername() != GM_getValue("un")) console.log("[APS] Updating data for new user.")
+    else if(!GM_getValue("petlist", false)) console.log("[APS] Getting user pet data for first time.")
+    else return false
+    return true
+}
 
-    let oldPets = GM_getValue("petlist")
-    let pets = getPets(doc)
-    if(pets && oldPets != pets) GM_setValue("petlist", pets)
-
+function getPetData(doc) {
+    GM_setValue("petlist", getPets(doc))
     GM_setValue("lastupdate", new Date().valueOf())
     GM_setValue("un", getUsername())
 
-    console.log("[APS] Home Page data updated.")
+    console.log("[APS] Pet data updated.")
 }
 
 //=================
@@ -94,18 +97,18 @@ function createMenu() {
     menu.appendChild(table)
     document.body.appendChild(menu)
 
-    //revalidates data if it times out or if username changes
-    if(new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000*60*HOME_DATA_TIMEOUT || getUsername() != GM_getValue("un") || !GM_getValue("petlist", false)) {
-        console.log("[APS] Data out of date or invalid, requesting new data.")
+    //revalidates if it needs to
+    if(checkForUpdate()) {
         let load = document.createElement("div")
         load.innerHTML = "( Fetching pet data ... )"
         menu.appendChild(load)
-        GM_addValueChangeListener("waitfordata", function(key,oldValue,newValue,remote) {
+        GM_addValueChangeListener("waitfordata", function() {
             populateTable()
             menu.removeChild(load)
         })
-        requestHomeData()
+        requestHomePage()
     }
+    //otherwise populates immediately
     else populateTable()
 }
 
@@ -141,6 +144,7 @@ function populateTable() {
             }
         }
     }
+    console.log(`[APS] Table populated with ${petList.length} pets.`)
 }
 
 //=====================
@@ -175,22 +179,11 @@ function changeActivePet(name) {
 }
 
 function sendActivePetReq(name) {
-    //hides menu once a selection is made
     $("#select-active-pet-menu")[0].style.display = "none"
-    let ref = GM_getValue("userref")
-    $.ajax({
-        url: "/np-templates/ajax/changepet.php",
-        dataType: 'json',
-        data: {
-            "_ref_ck":ref,
-            "new_active_pet":name,
-        },
-        type: "post",
-        success: function(data){
-            console.log(`[APS] Active pet changed to ${name}.`)
-            window.location.reload()
-        }
-    });
+     $.get("/process_changepet.phtml?new_active_pet="+name, function(){
+        console.log(`[APS] Active pet changed to ${name}.`)
+        window.location.reload()
+    })
 }
 
 
@@ -201,11 +194,6 @@ function sendActivePetReq(name) {
 function getUsername() {
     if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(3) a.text-muted")[0].innerHTML
     else return $("#header > table > tbody > tr:nth-child(1) > td.user.medText a[href]")[0].innerHTML
-}
-
-function getUserRef(doc) {
-    let src = doc.documentElement.outerHTML.split(/[\r\n]+/).find( l => l.includes('"_ref_ck":'))
-    return src.split(":")[1].replaceAll(/[^a-zA-Z\d]/g, "").trim()
 }
 
 function getPets(doc) {
