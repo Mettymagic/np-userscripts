@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Neopets - Active Pet Switch <MettyNeo>
-// @version      1.5
+// @name         Neopets - Active Pet Switch & Fishing Vortex Timer <MettyNeo>
+// @version      1.6
 // @description  Adds a button to the sidebar that lets you easily switch your active pet. Also adds some relevant fishing vortex quality of life.
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -16,10 +16,14 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-//collected page data times out after this many hours (default: 1 day)
-const HOME_DATA_TIMEOUT = 24
+//collected page data times out after this many hours. default: -1 (aka never)
+const HOME_DATA_TIMEOUT = -1
 //displays the table on the fishing result page
 const FISHING_DISPLAY = true
+  //tracks and displays pet fishing levels
+  const FISHING_LEVEL_TRACK = true
+  //tracks time since last fishing reward
+  const FISHING_TIME_TRACK = true
 //for my mom who keeps accidentally clicking it then getting confused
 const REMOVE_CAST_BUTTON = true
 
@@ -47,24 +51,25 @@ if(url.includes("water/fishing.phtml")) {
 }
 
 createMenuButton()
+listenForPetUpdates()
+
 
 //=========
 // overhead
 //=========
 
 function requestHomePage() {
-    GM_setValue("waitfordata", true)
+    GM_setValue("petlist", {}) //clears pet list
     $.get("https://www.neopets.com/home/", function(data, status){
         let doc = new DOMParser().parseFromString(data, "text/html")
         getPetData(doc)
         console.log("[APS] Data successfully retrieved.")
-        GM_setValue("waitfordata", false)
     })
 }
 
 function checkForUpdate() {
     //revalidates data if it times out or if username changes
-    if(new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000*60*60*HOME_DATA_TIMEOUT) console.log("[APS] Updating data for new day.")
+    if(new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000*60*60*HOME_DATA_TIMEOUT && HOME_DATA_TIMEOUT > 0) console.log("[APS] Updating data for new day.")
     else if(getUsername() != GM_getValue("un")) console.log("[APS] Updating data for new user.")
     else if(!GM_getValue("petlist", false)) console.log("[APS] Getting user pet data for first time.")
     else return false
@@ -77,6 +82,29 @@ function getPetData(doc) {
     GM_setValue("un", getUsername())
 
     console.log("[APS] Pet data updated.")
+}
+
+function listenForPetUpdates() {
+    GM_addValueChangeListener("petlist", function(key, oldValue, newValue, remote) {
+        //adds loading animation to table
+        if(JSON.stringify(newValue) == JSON.stringify({})) {
+            console.log("[APS] Cleared pet tables.")
+            for(let table of Array.from($(".activetable"))) {
+                table.innerHTML = '<div class="dot-spin"></div>'
+            }
+            for(let link of Array.from($(".activetable > a"))) {
+                link.style.display = "none"
+            }
+        }
+        else {
+            console.log(newValue)
+            console.log("[APS] Updated pet tables.")
+            populateTables()
+            for(let link of Array.from($(".activetable > a"))) {
+                link.style.display = "block"
+            }
+        }
+    })
 }
 
 //=================
@@ -102,10 +130,7 @@ function createMenu() {
     menu.id = "select-active-pet-menu"
     menu.style.display = "none" //starts not visible
 
-    let header = document.createElement("div")
-    header.classList.add("activetableheader")
-    header.innerHTML = `<b>Select an Active Pet:</b><br><small><small><small>(Click anywhere else to exit)</small></small></small>`
-    menu.appendChild(header)
+    menu.appendChild(getTableHeader(`<b>Select an Active Pet:</b><br><small><small><small>(Click anywhere else to exit)</small></small></small>`))
 
     //table
     let table = document.createElement("table")
@@ -115,13 +140,6 @@ function createMenu() {
 
     //revalidates if it needs to
     if(checkForUpdate()) {
-        let load = document.createElement("div")
-        load.innerHTML = "( Fetching pet data ... )"
-        menu.appendChild(load)
-        GM_addValueChangeListener("waitfordata", function() {
-            populateTables()
-            menu.removeChild(load)
-        })
         requestHomePage()
     }
     //otherwise populates immediately
@@ -131,8 +149,16 @@ function createMenu() {
 function populateTables() {
     let petList = Object.values(GM_getValue("petlist", {}))
     let tables = Array.from($(".activetable"))
+
     for(let table of tables) {
-        table.innerHTML = ""
+        if(petList.length < 1) {
+            table.innerHTML = "(pet list empty, refresh to fill)"
+            continue
+        }
+        else {
+            table.innerHTML = ""
+        }
+
         let activePet = getActivePet()
 
         for (let i = 0; i < 4; i++) { //4 rows
@@ -161,8 +187,23 @@ function populateTables() {
                 }
             }
         }
+
+        let refresh = document.createElement("a")
+        refresh.innerHTML = "(refresh pet list)"
+        refresh.addEventListener("click", (event) => {
+            event.stopPropagation()
+            requestHomePage() //updates pet list
+        })
+        table.appendChild(refresh)
         console.log(`[APS] Table populated with ${petList.length} pets.`)
     }
+}
+
+function getTableHeader(innerHTML) {
+    let header = document.createElement("div")
+    header.classList.add("activetableheader")
+    header.innerHTML = innerHTML
+    return header
 }
 
 function addFishingTable() {
@@ -170,10 +211,7 @@ function addFishingTable() {
     menu.classList.add("vertical")
     $("#container__2020")[0].appendChild(menu)
 
-    let header = document.createElement("div")
-    header.classList.add("activetableheader")
-    header.innerHTML = `<b>Fish With:</b>`
-    menu.appendChild(header)
+    menu.appendChild(getTableHeader(`<b>Fish With:</b>`))
 
     let table = document.createElement("table")
     table.classList.add("activetable")
@@ -199,22 +237,58 @@ function exitClick(event) {
 }
 
 function changeActivePet(name) {
-    //waits for data if the flag is on
-    if(GM_getValue("waitfordata", false)) {
-        console.log("[APS] Waiting for data to finish updating...")
-        GM_addValueChangeListener("waitfordata", function(key,oldValue,newValue,remote) {
-            sendActivePetReq(name)
-        })
+    let img = GM_getValue("petlist", {})[name].img.withBG
+
+    for(let table of Array.from($(".activetable"))) {
+        table.innerHTML = ""
+        let d1 = document.createElement("div"), d2 = document.createElement("div"), d3 = document.createElement("div")
+        d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
+        d1.style.opacity = "0.8"
+        d1.style.width = "150px !important"
+        d1.style.height = "150px !important"
+        d1.style.display = "block"
+        d1.style.position = "relative"
+        d3.classList.add("dot-spin")
+        d3.style.display = "block"
+        d3.style.position = "absolute"
+        d3.style.top = "50%"
+        d3.style.left = "50%"
+        d3.style.transform = "translate(-50%, -50%)"
+        d1.appendChild(d3)
+        d2.innerHTML = `${name} is now your active pet!`
+        table.appendChild(d1)
+        table.appendChild(d2)
     }
-    //otherwise do it now
-    else {
-        sendActivePetReq(name)
-    }
+    $.get("/process_changepet.phtml?new_active_pet="+name, function(){
+        console.log(`[APS] Active pet changed to ${name}. Reloading window.`)
+        window.location.reload()
+    })
 }
 
 function sendActivePetReq(name) {
-    $("#select-active-pet-menu")[0].style.display = "none"
-     $.get("/process_changepet.phtml?new_active_pet="+name, function(){
+    let img = GM_getValue("petlist", {})[name].img.withBG
+
+    for(let table of Array.from($(".activetable"))) {
+        table.innerHTML = ""
+        let d1 = document.createElement("div"), d2 = document.createElement("div"), d3 = document.createElement("div")
+        d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
+        d1.style.opacity = "0.8"
+        d1.style.width = "150px !important"
+        d1.style.height = "150px !important"
+        d1.style.display = "block"
+        d1.style.position = "relative"
+        d3.classList.add("dot-spin")
+        d3.style.display = "block"
+        d3.style.position = "absolute"
+        d3.style.top = "50%"
+        d3.style.left = "50%"
+        d3.style.transform = "translate(-50%, -50%)"
+        d1.appendChild(d3)
+        d2.innerHTML = `${name} is now your active pet!`
+        table.appendChild(d1)
+        table.appendChild(d2)
+    }
+    $.get("/process_changepet.phtml?new_active_pet="+name, function(){
         console.log(`[APS] Active pet changed to ${name}.`)
         window.location.reload()
     })
@@ -395,12 +469,28 @@ function addCSS() {
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            position: relative;
+            display: block;
+            min-width: 300px;
+        }
+        .activetable > a {
+            cursor: pointer;
+            display: block;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            top: 0%;
+            padding: 4px;
+            color: blue;
+            text-decoration: underline;
+            font-size: 8pt;
         }
         .activetable {
             padding: 20px 20px;
             text-align: center;
             background-color: #FFFFFF;
             border-spacing: 5px;
+            position: relative;
         }
         .activetable td {
             font-weight: bold;
@@ -463,5 +553,47 @@ function addCSS() {
         .activetable td[active] img {
             opacity: 0.3;
         }
+    `
+
+    //dot spin animation taken from https://codepen.io/nzbin/pen/GGrXbp
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+    .dot-spin {
+        margin: auto;
+        position: relative;
+        width: 10px !important;
+        height: 10px !important;
+        border-radius: 5px;
+        background-color: transparent;
+        color: transparent;
+        box-shadow: 0 -18px 0 0 #9880ff, 12.727926px -12.727926px 0 0 #9880ff, 18px 0 0 0 #9880ff, 12.727926px 12.727926px 0 0 rgba(152, 128, 255, 0), 0 18px 0 0 rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 0 rgba(152, 128, 255, 0), -18px 0 0 0 rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 0 rgba(152, 128, 255, 0);
+        animation: dot-spin 1.5s infinite linear;
+    }
+
+    @keyframes dot-spin {
+        0%, 100% {
+            box-shadow: 0 -18px 0 0 #9880ff, 12.727926px -12.727926px 0 0 #9880ff, 18px 0 0 0 #9880ff, 12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), 0 18px 0 -5px rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), -18px 0 0 -5px rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0);
+        }
+        12.5% {
+            box-shadow: 0 -18px 0 -5px rgba(152, 128, 255, 0), 12.727926px -12.727926px 0 0 #9880ff, 18px 0 0 0 #9880ff, 12.727926px 12.727926px 0 0 #9880ff, 0 18px 0 -5px rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), -18px 0 0 -5px rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0);
+        }
+        25% {
+            box-shadow: 0 -18px 0 -5px rgba(152, 128, 255, 0), 12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0), 18px 0 0 0 #9880ff, 12.727926px 12.727926px 0 0 #9880ff, 0 18px 0 0 #9880ff, -12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), -18px 0 0 -5px rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0);
+        }
+        37.5% {
+            box-shadow: 0 -18px 0 -5px rgba(152, 128, 255, 0), 12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0), 18px 0 0 -5px rgba(152, 128, 255, 0), 12.727926px 12.727926px 0 0 #9880ff, 0 18px 0 0 #9880ff, -12.727926px 12.727926px 0 0 #9880ff, -18px 0 0 -5px rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0);
+        }
+        50% {
+            box-shadow: 0 -18px 0 -5px rgba(152, 128, 255, 0), 12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0), 18px 0 0 -5px rgba(152, 128, 255, 0), 12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), 0 18px 0 0 #9880ff, -12.727926px 12.727926px 0 0 #9880ff, -18px 0 0 0 #9880ff, -12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0);
+        }
+        62.5% {
+            box-shadow: 0 -18px 0 -5px rgba(152, 128, 255, 0), 12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0), 18px 0 0 -5px rgba(152, 128, 255, 0), 12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), 0 18px 0 -5px rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 0 #9880ff, -18px 0 0 0 #9880ff, -12.727926px -12.727926px 0 0 #9880ff;
+        }
+        75% {
+            box-shadow: 0 -18px 0 0 #9880ff, 12.727926px -12.727926px 0 -5px rgba(152, 128, 255, 0), 18px 0 0 -5px rgba(152, 128, 255, 0), 12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), 0 18px 0 -5px rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), -18px 0 0 0 #9880ff, -12.727926px -12.727926px 0 0 #9880ff;
+        }
+        87.5% {
+            box-shadow: 0 -18px 0 0 #9880ff, 12.727926px -12.727926px 0 0 #9880ff, 18px 0 0 -5px rgba(152, 128, 255, 0), 12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), 0 18px 0 -5px rgba(152, 128, 255, 0), -12.727926px 12.727926px 0 -5px rgba(152, 128, 255, 0), -18px 0 0 -5px rgba(152, 128, 255, 0), -12.727926px -12.727926px 0 0 #9880ff;
+        }
+    }
     `
 }
