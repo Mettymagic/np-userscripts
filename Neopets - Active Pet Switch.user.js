@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2.1
+// @version      2.2
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -518,7 +518,7 @@ function addCSS() {
             font-size: 11pt;
             padding: 1px 0px 1px;
             width: 90%;
-            height: 100%;
+            height: 20px;
             display: block;
             font-weight: normal;
             text-align: center;
