@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2.0
+// @version      2.1
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -324,7 +324,7 @@ function initializePetLevel() {
     let name = getActivePet()
     if(isNaN(list[name]?.lvl)) {
         let lvl = $("#container__2020 > p:last-of-type > b")[0].innerHTML
-        list[name] = {lvl:lvl, xp:list[name]?.xp||null, lasttime:list[name]?.xp||null}
+        list[name] = {lvl:lvl, xp:list[name]?.xp||null, lasttime:list[name]?.lasttime||null}
         GM_setValue("fishinglist", list)
         console.log(`[FVP] Recorded ${name}'s fishing level. (${lvl})`)
     }
@@ -346,16 +346,16 @@ function handleFishingResult() {
             data.lasttime = new Date().valueOf()
         }
         if(FISHING_LEVEL_TRACK) {
-            let lvl = $("#container__2020 > p:last-of-type > b")
+            let lvl = Array.from($("#container__2020 > p")).filter((p)=>{return p.innerHTML.includes("Your pet's fishing skill increases to")})
             //level up occurred, reset xp
             if(lvl.length) {
                 if(isNaN(lvl[0].innerHTML)) {
-                    data.lvl = lvl[0].innerHTML
+                    data.lvl = lvl[0].querySelector("b").innerHTML
                     if(FISHING_XP_TRACK) data.xp = 0
                 }
             }
             //no level up, add to xp
-            else if(FISHING_XP_TRACK && (data.xp || -1) >= 0){
+            else if(FISHING_XP_TRACK && data.xp != null){
                 data.xp += 100
             }
         }
@@ -377,6 +377,8 @@ function addFishingPetDisplay(cell, name) {
     let chance = getLevelUpChance(data.xp, data.lvl)
     if(chance == null) lhover.innerHTML = "(?)% chance to lv up"
     else lhover.innerHTML = `${getLevelUpChance(data.xp, data.lvl)}% chance to lv up`
+    if(data.xp == null) lhover.innerHTML += `<br>Exp: (?)`
+    else lhover.innerHTML += `<br>Exp: ${data.xp}`
     ldiv.appendChild(lhover)
     cell.appendChild(ldiv)
 
