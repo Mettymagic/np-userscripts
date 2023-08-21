@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Neopets - Active Pet Switch & Fishing Vortex Timer <MettyNeo>
-// @version      1.6
-// @description  Adds a button to the sidebar that lets you easily switch your active pet. Also adds some relevant fishing vortex quality of life.
+// @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
+// @version      2.0
+// @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -9,21 +9,40 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_addValueChangeListener
+// @grant        window.focus
+// @grant        window.close
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Active%20Pet%20Switch.user.js
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Active%20Pet%20Switch.user.js
 // ==/UserScript==
 
+// You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
+// Feel free to contact me at @mettymagic on discord for any questions or inquiries. ^^
+
 // Trans rights are human rights ^^
 // metty says hi
 
+//===========
+// APS config
+//===========
 //collected page data times out after this many hours. default: -1 (aka never)
 const HOME_DATA_TIMEOUT = -1
-//displays the table on the fishing result page
-const FISHING_DISPLAY = true
+
+//===========
+// FVP config
+//===========
+//changes the display mode
+// -1 = disable display entirely. still tracks enabled info.
+// 0 = display table on fishing page w/o fishing info
+// 1 = display table on fishing page, plus fishing info (default)
+// 2 = display fishing info on all pages' pet table
+const FISHING_DISPLAY_MODE = 1
   //tracks and displays pet fishing levels
   const FISHING_LEVEL_TRACK = true
   //tracks time since last fishing reward
   const FISHING_TIME_TRACK = true
+    //tracks fishing xp gained and displays level up chance based on /u/neo_truths' post
+    //https://old.reddit.com/r/neopets/comments/xqylkt/ye_olde_fishing_vortex/
+    const FISHING_XP_TRACK = true
 //for my mom who keeps accidentally clicking it then getting confused
 const REMOVE_CAST_BUTTON = true
 
@@ -32,26 +51,28 @@ const REMOVE_CAST_BUTTON = true
 //==============
 
 const url = document.location.href
+//check for the top left pet icon to know we're in beta
 let isBeta = false
 if($("[class^='nav-pet-menu-icon']").length) isBeta = true
 
 
 if(url.includes("neopets.com/home")) {
     getPetData(document) //always update the data while we're here
-}
-
-if(url.includes("water/fishing.phtml")) {
-    if(Array.from($("#container__2020 > p")).some((p)=>{return p.innerHTML == "You reel in your line and get..."})) {
-        if(FISHING_DISPLAY) addFishingTable()
-        if(REMOVE_CAST_BUTTON) {
-            $('#container__2020 > a[href="/water/fishing.phtml"]').css("display","none")
-            $("#container__2020 > br:last-of-type").css("display","none")
-        }
+    //close if flagged to
+    let timeout = GM_getValue("stackpath-timeout")
+    if(timeout) {
+        GM_deleteValue("stackpath-timeout")
+        //wont close tab after 15 second timeout
+        if(new Date().valueOf() - timeout < 1000*15) window.close()
     }
 }
 
-createMenuButton()
-listenForPetUpdates()
+if(url.includes("water/fishing.phtml")) {
+    handleFishingVortex()
+}
+
+createMenuButton() //adds the button to open the menu
+listenForPetUpdates() //adds a listener for updates to the script's stored pet list, which then updates the menu
 
 
 //=========
@@ -62,6 +83,13 @@ function requestHomePage() {
     GM_setValue("petlist", {}) //clears pet list
     $.get("https://www.neopets.com/home/", function(data, status){
         let doc = new DOMParser().parseFromString(data, "text/html")
+        //sometimes stackpath blocks the page, in which case open a newtab and close it after
+        if(doc.title != "Welcome to Neopets!") {
+            console.log("[APS] Home page request blocked by stackpath, opening tab manually.")
+            GM_setValue("stackpath-timeout", new Date().valueOf())
+            window.open("https://www.neopets.com/home/")
+            window.focus()
+        }
         getPetData(doc)
         console.log("[APS] Data successfully retrieved.")
     })
@@ -184,6 +212,7 @@ function populateTables() {
                         cell.addEventListener("click", (event)=>{event.stopPropagation(); changeActivePet(name);})
                         cell.style.cursor = "pointer"
                     }
+                    if(url.includes("water/fishing.phtml") || FISHING_DISPLAY_MODE == 2) addFishingPetDisplay(cell, name)
                 }
             }
         }
@@ -206,18 +235,19 @@ function getTableHeader(innerHTML) {
     return header
 }
 
-function addFishingTable() {
+function addFishingTable(header) {
     let menu = document.createElement("div")
     menu.classList.add("vertical")
     $("#container__2020")[0].appendChild(menu)
 
-    menu.appendChild(getTableHeader(`<b>Fish With:</b>`))
+    menu.appendChild(getTableHeader(header))
 
     let table = document.createElement("table")
     table.classList.add("activetable")
     table.style.margin = "auto"
     menu.appendChild(table)
 }
+
 
 //=====================
 //element functionality
@@ -255,43 +285,144 @@ function changeActivePet(name) {
         d3.style.left = "50%"
         d3.style.transform = "translate(-50%, -50%)"
         d1.appendChild(d3)
-        d2.innerHTML = `${name} is now your active pet!`
-        table.appendChild(d1)
-        table.appendChild(d2)
-    }
-    $.get("/process_changepet.phtml?new_active_pet="+name, function(){
-        console.log(`[APS] Active pet changed to ${name}. Reloading window.`)
-        window.location.reload()
-    })
-}
-
-function sendActivePetReq(name) {
-    let img = GM_getValue("petlist", {})[name].img.withBG
-
-    for(let table of Array.from($(".activetable"))) {
-        table.innerHTML = ""
-        let d1 = document.createElement("div"), d2 = document.createElement("div"), d3 = document.createElement("div")
-        d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
-        d1.style.opacity = "0.8"
-        d1.style.width = "150px !important"
-        d1.style.height = "150px !important"
-        d1.style.display = "block"
-        d1.style.position = "relative"
-        d3.classList.add("dot-spin")
-        d3.style.display = "block"
-        d3.style.position = "absolute"
-        d3.style.top = "50%"
-        d3.style.left = "50%"
-        d3.style.transform = "translate(-50%, -50%)"
-        d1.appendChild(d3)
-        d2.innerHTML = `${name} is now your active pet!`
+        d2.id = "set-active-msg"
+        d2.innerHTML = `Setting ${name} as active pet...`
         table.appendChild(d1)
         table.appendChild(d2)
     }
     $.get("/process_changepet.phtml?new_active_pet="+name, function(){
         console.log(`[APS] Active pet changed to ${name}.`)
+        for(let table of Array.from($(".activetable"))) {
+            table.querySelector(".dot-spin").style.display = "none"
+            table.querySelector("#set-active-msg").innerHTML = `${name} is now your active pet!`
+        }
         window.location.reload()
     })
+}
+
+
+//==================
+// fvp functionality
+//==================
+
+function handleFishingVortex() {
+    //result page
+    if(Array.from($("#container__2020 > p")).some((p)=>{return p.innerHTML == "You reel in your line and get..."})) {
+        if(FISHING_DISPLAY_MODE >= 0) addFishingTable(`<b>Fish With:</b>`)
+        if(REMOVE_CAST_BUTTON) removeCastButton()
+        if(FISHING_TIME_TRACK || FISHING_LEVEL_TRACK) handleFishingResult()
+    }
+    //main page
+    else if($("#pageDesc").length > 0) {
+        if(FISHING_DISPLAY_MODE >= 0) addFishingTable(`<b>Change Active Pet:</b>`)
+        if(FISHING_LEVEL_TRACK) initializePetLevel()
+    }
+}
+
+function initializePetLevel() {
+    let list = GM_getValue("fishinglist", {})
+    let name = getActivePet()
+    if(isNaN(list[name]?.lvl)) {
+        let lvl = $("#container__2020 > p:last-of-type > b")[0].innerHTML
+        list[name] = {lvl:lvl, xp:list[name]?.xp||null, lasttime:list[name]?.xp||null}
+        GM_setValue("fishinglist", list)
+        console.log(`[FVP] Recorded ${name}'s fishing level. (${lvl})`)
+    }
+}
+
+function removeCastButton() {
+    $('#container__2020 > a[href="/water/fishing.phtml"]').css("display","none")
+    $("#container__2020 > br:last-of-type").css("display","none")
+    console.log("[FVP] Removed cast again button.")
+}
+
+function handleFishingResult() {
+    //if theres a reward, do stuff
+    if($("#container__2020 > div.item-single__2020").length) {
+        let list = GM_getValue("fishinglist", {})
+        let name = getActivePet()
+        let data = list[name] || {lvl:null, xp:null, lasttime:null}
+        if(FISHING_TIME_TRACK) {
+            data.lasttime = new Date().valueOf()
+        }
+        if(FISHING_LEVEL_TRACK) {
+            let lvl = $("#container__2020 > p:last-of-type > b")
+            //level up occurred, reset xp
+            if(lvl.length) {
+                if(isNaN(lvl[0].innerHTML)) {
+                    data.lvl = lvl[0].innerHTML
+                    if(FISHING_XP_TRACK) data.xp = 0
+                }
+            }
+            //no level up, add to xp
+            else if(FISHING_XP_TRACK && (data.xp || -1) >= 0){
+                data.xp += 100
+            }
+        }
+        list[name] = data
+        console.log(`[FVP] Fishing results for ${name} recorded.`)
+        GM_setValue("fishinglist", list)
+    }
+}
+
+function addFishingPetDisplay(cell, name) {
+    let data = GM_getValue("fishinglist", {})[name] || {lvl:null, xp:null, lasttime:null}
+
+    //level display
+    let ldiv = document.createElement("div")
+    ldiv.classList.add("leveldisplay", "fishingdisplay")
+    ldiv.innerHTML = `Lv.${data.lvl || "(?)"}`
+    let lhover = document.createElement("div")
+    lhover.classList.add("fishingdisplay")
+    let chance = getLevelUpChance(data.xp, data.lvl)
+    if(chance == null) lhover.innerHTML = "(?)% chance to lv up"
+    else lhover.innerHTML = `${getLevelUpChance(data.xp, data.lvl)}% chance to lv up`
+    ldiv.appendChild(lhover)
+    cell.appendChild(ldiv)
+
+    //time display
+    let tdiv = document.createElement("div")
+    tdiv.classList.add("timedisplay", "fishingdisplay", "circular-progress")
+    //deals with display w/o a recorded time
+    if(data.lasttime == null) {
+        tdiv.innerHTML = `
+          <div class="inner-circle fishingdisplay"></div>
+          <p class="percentage fishingdisplay">(?)hr</p>
+        `
+        tdiv.style.background = `#c4c4c4`
+    }
+    else {
+        let t = getTimeSinceFished(data.lasttime)
+        tdiv.innerHTML = `
+          <div class="inner-circle fishingdisplay"></div>
+          <p class="percentage fishingdisplay">${t.toFixed(1)}hr</p>
+        `
+        tdiv.style.background = `conic-gradient(${getCircleColor(t/26.0)} ${t/26.0*360}deg, #c4c4c4 0deg)`
+    }
+    cell.appendChild(tdiv)
+}
+
+function getCircleColor(p) {
+    if(p < 0.2) return "#e87e72"
+    else if(p < 0.4) return "#e8b972"
+    else if(p < 0.6) return "#ebed77"
+    else if(p < 0.8) return "#c0ed77"
+    else if(p < 1.0) return "#77ed7d"
+    else return "#88f2dd"
+}
+
+function getTimeSinceFished(tfish) {
+    if(tfish == null) return null
+    let t = new Date().valueOf() - tfish
+    return Math.min(Math.floor((t/(1000.0*60.0*60.0))*10)/10.0, 26.0) //# of hrs w/ 1 decimal place, rounded down
+}
+
+function getLevelUpChance(exp, lvl) {
+    //if we dont have the data for either, our chance is unknown
+    if(exp == null || lvl == null) return null
+    //if (1-100) <= p, we win. (eg if p = 5, we have a 5% chance)
+    let p = Math.floor((exp-lvl-20) / 1.8)
+    return Math.max(p, 0.0).toFixed(1) //can't have negative percentage, rounds to 1 decimal
 }
 
 
@@ -510,7 +641,7 @@ function addCSS() {
             -ms-user-select: none;
             user-select: none;
         }
-        .activetable td div {
+        .activetable td div:not(.fishingdisplay) {
             margin: 0;
             padding: 0;
             width: 170px !important;
@@ -553,11 +684,117 @@ function addCSS() {
         .activetable td[active] img {
             opacity: 0.3;
         }
+        td[active] > div.fishingdisplay::after {
+            width: 40px;
+            height: 40px;
+            display: block;
+            position: absolute;
+            border-radius: 50%;
+            content: "";
+            background-color: black;
+            opacity: 0.5;
+        }
+        .leveldisplay {
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #c4c4c4;
+            font-size: 8pt;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(255,255,255,0.95);
+            right: 55px;
+            top: 118px;
+            transition: 0.5s;
+            box-sizing: border-box;
+        }
+        .leveldisplay:hover {
+            background-color: #d9d9d9;
+        }
+        .leveldisplay > div {
+            justify-content: center;
+            align-items: center;
+            display: flex;
+            transition: 0.2s;
+            visibility: hidden;
+            position: absolute;
+            width: 120px;
+            height: 40px;
+            opacity: 0;
+            top: -4px;
+            left: -4px;
+            background-color: white;
+            border-radius: 4px;
+            z-index: 100000;
+        }
+        .leveldisplay:hover > div {
+            transition-delay:0.5s;
+            opacity: 1;
+            visibility: visible;
+        }
+        .timedisplay {
+            position: absolute;
+            top: 118px;
+            right: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            opacity: 0.95;
+        }
+    `
+
+    //radial progress bar taken from https://dev.to/shubhamtiwari909/circular-progress-bar-css-1bi9
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+        :root {
+          --progress-bar-width: 40px;
+          --progress-bar-height: 40px;
+        }
+        .circular-progress {
+            width: var(--progress-bar-width);
+            height: var(--progress-bar-height);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .inner-circle {
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.95);
+        }
+
+        .percentage {
+            position: relative;
+            font-size: 8pt !important;
+            color: black;
+        }
     `
 
     //dot spin animation taken from https://codepen.io/nzbin/pen/GGrXbp
     document.head.appendChild(document.createElement("style")).innerHTML = `
+    .dot-spin::before {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        left: 50%;
+        top: 50%;
+        background-color: white;
+        opacity: 0.5;
+        transform: translate(-50%, -50%) translateZ(-1px);
+        border-radius: 50%;
+        content: "";
+        display: block;
+        z-index: -1;
+
+    }
     .dot-spin {
+        transform-style: preserve-3d;
         margin: auto;
         position: relative;
         width: 10px !important;
