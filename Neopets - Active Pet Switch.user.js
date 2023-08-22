@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2.1
+// @version      2.4
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -322,7 +322,7 @@ function handleFishingVortex() {
 function initializePetLevel() {
     let list = GM_getValue("fishinglist", {})
     let name = getActivePet()
-    if(isNaN(list[name]?.lvl)) {
+    if(!isNaN(list[name]?.lvl)) {
         let lvl = $("#container__2020 > p:last-of-type > b")[0].innerHTML
         list[name] = {lvl:lvl, xp:list[name]?.xp||null, lasttime:list[name]?.lasttime||null}
         GM_setValue("fishinglist", list)
@@ -349,7 +349,7 @@ function handleFishingResult() {
             let lvl = Array.from($("#container__2020 > p")).filter((p)=>{return p.innerHTML.includes("Your pet's fishing skill increases to")})
             //level up occurred, reset xp
             if(lvl.length) {
-                if(isNaN(lvl[0].innerHTML)) {
+                if(!isNaN(lvl[0].innerHTML)) {
                     data.lvl = lvl[0].querySelector("b").innerHTML
                     if(FISHING_XP_TRACK) data.xp = 0
                 }
@@ -518,7 +518,7 @@ function addCSS() {
             font-size: 11pt;
             padding: 1px 0px 1px;
             width: 90%;
-            height: 100%;
+            height: 20px;
             display: block;
             font-weight: normal;
             text-align: center;
