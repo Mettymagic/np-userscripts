@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Neopets - Inventory Plus <MettyNeo>
-// @version      0.9
+// @version      1.0
 // @description  Improves the Inventory page by allowing multiple actions to be performed without a page refresh and saves selected options for items.
 // @author       Metamagic
 // @match        *://*.neopets.com/inventory.phtml*
 // @match        *://neopets.com/inventory.phtml*
 // @icon         https://i.imgur.com/RnuqLRm.png
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Inventory%2B.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Inventory%2B.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
