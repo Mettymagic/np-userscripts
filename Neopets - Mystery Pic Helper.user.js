@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Neopets - Mystery Pic Quicklinks <MettyNeo>
+// @name         Neopets - Mystery Pic Helper <MettyNeo>
 // @version      1.0
 // @description  Adds Image Emporium quicklinks to the Mystery Pic page
 // @author       Metamagic
@@ -34,4 +34,4 @@ document.head.appendChild(document.createElement("style")).innerHTML = `
     }
 `
 
-console.log("[MPQ] Quicklinks added.")
+console.log("[MPH] Quicklinks added.")
