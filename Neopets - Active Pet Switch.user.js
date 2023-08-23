@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2.5
+// @version      2.6
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -54,7 +54,7 @@ const url = document.location.href
 //check for the top left pet icon to know we're in beta
 let isBeta = false
 if($("[class^='nav-pet-menu-icon']").length) isBeta = true
-
+let timeoutId = null
 
 if(url.includes("neopets.com/home")) {
     getPetData(document) //always update the data while we're here
@@ -117,18 +117,20 @@ function listenForPetUpdates() {
         //if pet list is now empty, adds loading msg
         if(JSON.stringify(newValue) == JSON.stringify({})) {
             console.log("[APS] Cleared pet tables.")
-            for(let table of Array.from($(".activetable"))) {
-                table.innerHTML = '<div class="dot-spin"></div>'
-            }
+            addLoadDivs()
+            //removes refresh button
             for(let link of Array.from($(".activetable > a"))) {
                 link.style.display = "none"
             }
         }
         //if pet list is otherwise updated, update tables
         else {
-            console.log(newValue)
             console.log("[APS] Updated pet tables.")
+            console.log(newValue)
+            clearTimeout(timeoutId)
+            timeoutId = null
             populateTables()
+            //adds refresh button back
             for(let link of Array.from($(".activetable > a"))) {
                 link.style.display = "block"
             }
@@ -181,8 +183,9 @@ function populateTables() {
 
     for(let table of tables) {
         if(petList.length < 1) {
-            table.innerHTML = "(pet list empty, refresh to fill)"
-            continue
+            addLoadDivs()
+            requestHomePage()
+            break
         }
         else {
             table.innerHTML = ""
@@ -227,6 +230,20 @@ function populateTables() {
         table.appendChild(refresh)
         console.log(`[APS] Table populated with ${petList.length} pets.`)
     }
+}
+
+function addLoadDivs() {
+    let loadMsg = '<div class="dot-spin"></div><div style="margin-top: 30px">Fetching pet data...</div>'
+    for(let table of Array.from($(".activetable"))) {
+        table.innerHTML = loadMsg
+    }
+    //if it hasn't grabbed results after 5 seconds, display a message
+    timeoutId = setTimeout(() => {
+        for(let table of Array.from($(".activetable"))) {
+            if(table.innerHTML == loadMsg)
+                table.innerHTML += '<div><a href="/home" target="_blank"><small>(click here if its taking too long)</small></a></div>'
+        }
+    }, 3000)
 }
 
 function getTableHeader(innerHTML) {
