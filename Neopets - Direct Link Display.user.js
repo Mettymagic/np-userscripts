@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Direct Link Display <MettyNeo>
-// @version      0.4
+// @version      0.5
 // @description  Gives the results from direct links a much cleaner display and tracks # of coconut shy refreshes
 // @author       Metamagic
 // @match        https://www.neopets.com/halloween/process_cocoshy.phtml?coconut=*
@@ -16,78 +16,9 @@
 // @updateURL   https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Direct%20Link%20Display.user.js
 // ==/UserScript==
 
-function addCSS() {
-    document.head.appendChild(document.createElement("style")).innerHTML = `
-    .container {
-        width: 400px;
-        height: fit-content;
-        visibility: hidden;
-    }
-    .title {
-        width: fit-content;
-        height: 30px;
-        background-color: inherit;
-        text-align: center;
-        line-height: 100%;
-        font-size: 30px;
-        font-weight: bold;
-        font-family: "Impact", Copperplate;
-        color: #FFFFFF;
-        -webkit-text-stroke: 1px black;
-        padding: 8px;
-        visibility: visible;
-    }
-    .box {
-        border-style: solid;
-        border-width: 1px;
-        border-color: #000;
-        width: fit-content;
-        height: fit-content;
-        background-color: inherit;
-        padding: 16px;
-        transform: translate(0px, -48px);
-        visibility: visible;
-    }
-    .contents {
-        padding-top: 30px;
-        width: 100%;
-        height: fit-content;
-        display: flex;
-        flex-direction: column;
-        visibility: visible;
-    }
-    .msg {
-        padding: 8px;
-        font-size: 18px;
-        line-height: 18px;
-        visibility: visible;
-    }
-    .count {
-        width: fit-content;
-        height: 30px;
-        background-color: inherit;
-        text-align: center;
-        align-items: end;
-        line-height: 100%;
-        color: #FFFFFF;
-        padding: 8px;
-        padding-top: 4px;
-        padding-bottom: 12px;
-        visibility: visible;
-        display: flex;
-        transform: translateX(-1px);
-        position: relative;
-
-    }
-    .header {
-        width: 100% !important;
-        display: flex;
-        background-color: inherit;
-        transform: translateX(8px);
-        position: relative;
-        z-index: 1;
-    }
-`
+const reactionmap = {
+    1:"good",
+    2:"bad"
 }
 
 const wheelmap = {
@@ -99,6 +30,7 @@ const wheelmap = {
     6: "Extravagance"
 }
 
+//i only added this because i won one during development lol
 const coconutmap = {
     26800: "Angry",
     26806: "Burning",
@@ -147,26 +79,27 @@ if(url.includes("/process_cocoshy.phtml")) {
         let count = GM_getValue("cscount", 1) //first load = count of 1
         if(count < 20) count++
         GM_setValue("cscount", count)
+        //updates count right then
+        document.querySelector("#container > div.header > div.count").innerHTML = "<b>(Count:</b>&nbsp"+count+"<b>)</b>"
     })
 }
 
 //runs on page load
 (function() {
-    //GM_deleteValue("cscount") //enable to reset coconut shy counter, for testing
-    //fuck stackpath - it occasionally breaks parts of the script.
     if(!document.body.innerHTML.includes("Neopets - Checking Cookies")) {
         addCSS()
         let html = document.body.innerHTML
-        console.log(html)
         let results = createResultsBox()
         let contents = results.querySelector("#contents")
 
         if(url.includes("/process_cocoshy.phtml")) displayCocoShy(results, contents, html)
         else if(url.includes("/process_strtest.phtml")) displayStrTest(results, contents, html)
-        else if(url.includes("/WheelService.spinWheel/")) displayWheel(results, contents, html, wheelmap[url.match(/^.*([12345]).*/)[1]])
+        else if(url.includes("/WheelService.spinWheel/")) displayWheel(results, contents, html, wheelmap[url.match(/^.*([123456]).*/)[1]])
         else if(url.includes("ncmall.neopets.com/games/giveaway/process_giveaway.phtml")) displayScarab(results, contents, html)
+
+        document.body.textContent = ""
+        document.body.appendChild(results)
     }
-    else console.log("stackpath moment")
 })()
 
 function getTime(date = new Date(), zeroTime = false) {
@@ -212,14 +145,11 @@ function createResultsBox() {
     contents.id = "contents"
     box.appendChild(contents)
 
-    document.body.innerHTML = ""
-    document.body.appendChild(cont)
-
     return cont
 }
 
 function displayCocoShy(results, contents, html) {
-    //fun fact i actually won a coconut while developing this script. saved the result below for testing.
+    //i actually won a coconut while developing this script. saved the result below for testing.
     //html = `points=10000&amp;totalnp=4097858&amp;success=4&amp;prize_id=26874&amp;error=Ach%21+See%2C+the+game+isn%27t+rigged+after+all%21++Tell+your+friends%2C+kid%21`
     //out of throws
     if(html.includes("success=0")) {
@@ -236,16 +166,15 @@ function displayCocoShy(results, contents, html) {
     countdiv.classList.add("count")
     let count = Math.min(GM_getValue("cscount", 1), 20)
     countdiv.innerHTML = "<b>(Count:</b>&nbsp"+count+"<b>)</b>"
+    countdiv.style.fontSize = "24px"
     results.children[0].appendChild(countdiv)
 
-    let msg = document.createElement("div")
-    msg.classList.add("msg")
+    let msg = document.createElement("p")
     msg.innerHTML = '"'+getMessage(html, "error=")+'"'
     contents.appendChild(msg)
 
     if(!html.includes("success=0")) {
-        let npsummary = document.createElement("div")
-        npsummary.classList.add("msg")
+        let npsummary = document.createElement("p")
         npsummary.innerHTML = `NP Spent: 100 NP<br/>NP Earned: ${html.slice(7, html.length).split("&")[0]} NP<br/>New NP Balance: ${html.split("totalnp=")[1].split("&")[0]} NP`
 
         //coconut prize
@@ -267,8 +196,12 @@ function displayStrTest(results, contents, html) {
 }
 
 function displayWheel(results, contents, html, type) {
-    if(html.includes('"reply":')) document.body.innerHTML = type+": "+getMessage(html, '"reply":')+"<br/>This display is WIP!"
-    else document.body.innerHTML = type+": "+getMessage(html, '"errmsg":')+"<br/>This display is WIP!"
+    let xml = JSON.parse(html)
+    let msg = xml.errmsg || xml.reply || null
+    let reaction = xml.reaction || 2
+    let spinagain = xml.spinagain || false
+    contents.innerHTML = `${type}: ${msg}<br>reaction=${reaction} (${reactionmap[reaction]})<br>spinagain=${spinagain}<br>html:<br>${html}`
+    //reaction 1=happy 2=bad result
 }
 
 function displayScarab(results, contents, html) {
@@ -307,4 +240,68 @@ function getMessage(html, tag) {
 
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function addCSS() {
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+    .container {
+        width: 400px;
+        height: fit-content;
+        border: 2px solid #000;
+    }
+    .title {
+        width: fit-content;
+        height: 30px;
+        background-color: inherit;
+        text-align: center;
+        line-height: 100%;
+        font-size: 30px;
+        font-weight: bold;
+        font-family: "Impact", Copperplate;
+        color: #FFFFFF;
+        -webkit-text-stroke: 1px black;
+        padding: 8px;
+        padding-left: 0px;
+    }
+    .box {
+        box-sizing: border-box;
+        background-color: inherit;
+        padding: 16px;
+        padding-top: 0px;
+    }
+    .contents {
+        width: 100%;
+        height: fit-content;
+        display: flex;
+        flex-direction: column;
+        font-size: 18px;
+        line-height: 18px;
+    }
+    .contents > p {
+        margin: 8px;
+    }
+    .count {
+        width: fit-content;
+        height: 30px;
+        background-color: inherit;
+        text-align: center;
+        vertical-align: top;
+        color: #FFFFFF;
+        padding: 8px;
+        display: block;
+        position: relative;
+        padding-right: 0px;
+
+    }
+    .header {
+        box-sizing: border-box;
+        padding: 0px 16px;
+        width: 100% !important;
+        display: flex;
+        background-color: inherit;
+        position: relative;
+        justify-content: space-between;
+        z-index: 1;
+    }
+`
 }
