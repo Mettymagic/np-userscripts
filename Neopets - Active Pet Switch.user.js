@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2.4
+// @version      2.5
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -114,7 +114,7 @@ function getPetData(doc) {
 
 function listenForPetUpdates() {
     GM_addValueChangeListener("petlist", function(key, oldValue, newValue, remote) {
-        //adds loading animation to table
+        //if pet list is now empty, adds loading msg
         if(JSON.stringify(newValue) == JSON.stringify({})) {
             console.log("[APS] Cleared pet tables.")
             for(let table of Array.from($(".activetable"))) {
@@ -124,6 +124,7 @@ function listenForPetUpdates() {
                 link.style.display = "none"
             }
         }
+        //if pet list is otherwise updated, update tables
         else {
             console.log(newValue)
             console.log("[APS] Updated pet tables.")
@@ -349,10 +350,8 @@ function handleFishingResult() {
             let lvl = Array.from($("#container__2020 > p")).filter((p)=>{return p.innerHTML.includes("Your pet's fishing skill increases to")})
             //level up occurred, reset xp
             if(lvl.length) {
-                if(!isNaN(lvl[0].innerHTML)) {
-                    data.lvl = lvl[0].querySelector("b").innerHTML
-                    if(FISHING_XP_TRACK) data.xp = 0
-                }
+                data.lvl = lvl[0].querySelector("b").innerHTML
+                if(FISHING_XP_TRACK) data.xp = 0
             }
             //no level up, add to xp
             else if(FISHING_XP_TRACK && data.xp != null){
@@ -423,7 +422,7 @@ function getLevelUpChance(exp, lvl) {
     //if we dont have the data for either, our chance is unknown
     if(exp == null || lvl == null) return null
     //if (1-100) <= p, we win. (eg if p = 5, we have a 5% chance)
-    let p = Math.floor((exp-lvl-20) / 1.8)
+    let p = Math.floor(((exp+100)-lvl-20) / 1.8)
     return Math.max(p, 0.0).toFixed(1) //can't have negative percentage, rounds to 1 decimal
 }
 
