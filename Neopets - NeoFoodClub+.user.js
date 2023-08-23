@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.1
+// @version      1.2
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -32,88 +32,6 @@ const AUTOMAXBET = true //automatically fills max bet value
 const AUTOCOLLECTMAXBET = true //grabs the max bet from the neo food club page for convenience
 const AUTOCOLLECT_TIMEOUT = 120 //autocollected data times out after this many minutes (default: 2hr)
 const ADD_NEO_LINKS = true //adds some quick links to neopets food club pages for convenience
-//const SETCOOKIEONBET = true //creates a browser cookie after submitting bets, used for Food Club Reminder script. Harmless even if not using it.
-
-
-//============================
-// css because react is stupid
-//============================
-
-function addCSS() {
-    document.head.appendChild(document.createElement("style")).innerHTML = `
-    /* green button */
-    .css-1a4vxth[disabled], .css-1a4vxth[aria-disabled="true"], .css-1a4vxth[data-disabled] {
-        opacity: 0.4;
-        box-shadow: var(--chakra-shadows-none);
-        cursor: auto;
-    }
-
-    /*grey button*/
-    .css-1t3af2r {
-        display: inline-flex;
-        appearance: none;
-        -webkit-box-align: center;
-        align-items: center;
-        -webkit-box-pack: center;
-        justify-content: center;
-        user-select: none;
-        position: relative;
-        white-space: nowrap;
-        vertical-align: middle;
-        outline: transparent solid 2px;
-        outline-offset: 2px;
-        width: 100%;
-        line-height: 1.2;
-        border-radius: var(--chakra-radii-md);
-        font-weight: var(--chakra-fontWeights-semibold);
-        transition-property: var(--chakra-transition-property-common);
-        transition-duration: var(--chakra-transition-duration-normal);
-        height: var(--chakra-sizes-8);
-        min-width: var(--chakra-sizes-8);
-        font-size: var(--chakra-fontSizes-sm);
-        padding-inline-start: var(--chakra-space-3);
-        padding-inline-end: var(--chakra-space-3);
-        background: var(--chakra-colors-whiteAlpha-200);
-    }
-    .css-1t3af2r:disabled, .css-1t3af2r[data-hover] {
-        background: var(--chakra-colors-whiteAlpha-300);
-        cursor: not-allowed;
-    }
-    /* red button*/
-    .css-ejxey[disabled], .css-ejxey[aria-disabled="true"], .css-ejxey[data-disabled] {
-    opacity: 0.4;
-    cursor: not-allowed;
-    box-shadow: var(--chakra-shadows-none);
-    }
-    .css-ejxey {
-        display: inline-flex;
-        appearance: none;
-        -webkit-box-align: center;
-        align-items: center;
-        -webkit-box-pack: center;
-        justify-content: center;
-        user-select: none;
-        position: relative;
-        white-space: nowrap;
-        vertical-align: middle;
-        outline: transparent solid 2px;
-        outline-offset: 2px;
-        width: 100%;
-        line-height: 1.2;
-        border-radius: var(--chakra-radii-md);
-        font-weight: var(--chakra-fontWeights-semibold);
-        transition-property: var(--chakra-transition-property-common);
-        transition-duration: var(--chakra-transition-duration-normal);
-        height: var(--chakra-sizes-8);
-        min-width: var(--chakra-sizes-8);
-        font-size: var(--chakra-fontSizes-sm);
-        padding-inline-start: var(--chakra-space-3);
-        padding-inline-end: var(--chakra-space-3);
-        background: var(--chakra-colors-red-200);
-        color: var(--chakra-colors-gray-800);
-    }
-    `
-}
 
 //================
 // food club dicts
@@ -194,8 +112,12 @@ else if(window.location.href.includes("neopets.com/pirates/process_foodclub.phtm
 
 //result page - record bets
 else if(window.location.href.includes("neopets.com/pirates/foodclub.phtml?type=current_bets")) {
-    let newBet = parseCurrentBets()
-    if(AUTOCLOSETABS && newBet) window.close()
+    parseCurrentBets()
+    let toProcess = GM_getValue("toprocess", 0)
+    if(AUTOCLOSETABS && toProcess > 0) {
+        GM_setValue("toprocess", toProcess-1)
+        window.close()
+    }
     //appends current bet count to current bets page for convenience
     let betCount = Array.from($("#content > table > tbody > tr > td.content > center:nth-child(6) > center:nth-child(2) > table tr[bgcolor='white']")).filter(r => r.children.length == 5).length
     $("#content > table > tbody > tr > td.content > center:nth-child(6) > center:nth-child(2) > table > tbody > tr:nth-child(1) > td > font")[0].innerHTML += ` <b>(${betCount})</b>`
@@ -205,7 +127,7 @@ else if(window.location.href.includes("neopets.com/pirates/foodclub.phtml?type=c
 // program launching
 //==================
 
-//waits for the right conditions to apply the changes of the script
+//waits for the right conditions to apply the changes of the script - aka when to start
 function waitForBetTable() {
     //the table we want already exists, wait for it to finish populating
     let table = getBetTable()
@@ -220,20 +142,28 @@ function waitForBetTable() {
         settableobs.observe(table, {subTree: true, childList: true});
     }
     //the table we want doesn't exist, wait for it to exist
-    else watchForBetTable()
+    else {
+        if(ADD_NEO_LINKS) addNeoLinks($(".css-1073utt")[0])
+        watchForBetTable()
+    }
 }
 
-//watches for the addition/removal of the main bet table on the page
+//watches for the addition/removal of the main bet table on the page - aka when to re-apply the script
 function watchForBetTable() {
     let page = $("#root > div")[0]
     const pageobs = new MutationObserver(mutations => {
         //if table is added, apply
         for(const mutation of mutations) {
             if(mutation.addedNodes.length > 0) {
-                if(mutation.addedNodes[0] == getBetTable().parentElement) {
+                //if the bet table is added, re-apply
+                if(mutation.addedNodes[0] == getBetTable()?.parentElement) {
                     console.log("[NFC+] Applying userscript to bet table...")
                     handleNeoFoodMods()
                     break
+                }
+                //otherwise, check if we need to add the bet links
+                else if($("#quicklink-cont").length == 0 && ADD_NEO_LINKS) { //if bet links don't exist
+                    addNeoLinks($(".css-1073utt")[0])
                 }
             }
         }
@@ -248,7 +178,7 @@ function handleNeoFoodMods() {
     handleBetButtons() //updates place bet buttons
     updateMaxBet() //updates the max bet value in the header
     applyMaxBetValue() //presses the set all max bet button
-    if(ADD_NEO_LINKS) addNeoLinks()
+    if(ADD_NEO_LINKS) addNeoLinks($("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]) //adds quick links
 }
 
 function updateRound() {
@@ -275,14 +205,17 @@ function updateRound() {
         GM_deleteValue("tabinfo")
         GM_deleteValue("betstatus")
         GM_deleteValue("placedbets")
+        GM_deleteValue("toprocess")
         console.log("[NFC+] "+ resetMsg)
     }
 }
 
+//reads the current bets page to check whether a bet was placed or not
 function parseCurrentBets() {
     let currentbets = Array.from($("#content > table > tbody > tr > td.content > center:nth-child(6) > center:nth-child(2) > table tr[bgcolor='white']")).filter(r => r.children.length == 5)
+    let newBets = currentbets.length - GM_getValue("placedbets", []).length
     //only updates stored bet list if there are new bets detected (to deal with out-of-order loading)
-    if(GM_getValue("placedbets", []).length < currentbets.length) {
+    if(newbets > 0) {
         let betList = []
         let closeTab = false
         //parse each row
@@ -311,9 +244,9 @@ function parseCurrentBets() {
         //update global value
         GM_setValue("placedbets", betList)
         console.log("[NFC+] Current bets list updated.")
-        return true
+        //updates # of tabs to close
+        GM_setValue("toprocess", GM_getValue("toprocess", 0) + newBets)
     }
-    return false
 }
 
 
@@ -364,16 +297,19 @@ function applyMaxBetValue() {
     }
 }
 
-function addNeoLinks() {
-    let cont = $("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]
+//note: designed with dark mode in mind, too lazy to make a light mode one too.
+function addNeoLinks(cont) {
     let linkCont = document.createElement("div")
     linkCont.classList.add("css-cpjzy9")
+    linkCont.style.marginRight = "20px"
+    linkCont.style.color = "white"
+    linkCont.id = "quicklink-cont"
     let linkCont2 = document.createElement("div")
     linkCont2.classList.add("chakra-stack", "css-n21gh5")
 
     let button1 = document.createElement("button")
     button1.type = "button"
-    button1.classList.add("chakra-button", "css-178homt")
+    button1.classList.add("chakra-button", "css-178homt", "css-1a5epff")
     let button2 = button1.cloneNode()
     button1.innerHTML = "Current Bets"
     button1.addEventListener("click", () => { window.open('https://www.neopets.com/pirates/foodclub.phtml?type=current_bets') })
@@ -594,4 +530,84 @@ function getRowFromCurrentBet(bet) {
         if(match) return row
     }
     return null
+}
+
+//============================
+// css because react is stupid
+//============================
+
+function addCSS() {
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+    /* green button */
+    .css-1a4vxth[disabled], .css-1a4vxth[aria-disabled="true"], .css-1a4vxth[data-disabled] {
+        opacity: 0.4;
+        box-shadow: var(--chakra-shadows-none);
+        cursor: auto;
+    }
+
+    /*grey button*/
+    .css-1t3af2r {
+        display: inline-flex;
+        appearance: none;
+        -webkit-box-align: center;
+        align-items: center;
+        -webkit-box-pack: center;
+        justify-content: center;
+        user-select: none;
+        position: relative;
+        white-space: nowrap;
+        vertical-align: middle;
+        outline: transparent solid 2px;
+        outline-offset: 2px;
+        width: 100%;
+        line-height: 1.2;
+        border-radius: var(--chakra-radii-md);
+        font-weight: var(--chakra-fontWeights-semibold);
+        transition-property: var(--chakra-transition-property-common);
+        transition-duration: var(--chakra-transition-duration-normal);
+        height: var(--chakra-sizes-8);
+        min-width: var(--chakra-sizes-8);
+        font-size: var(--chakra-fontSizes-sm);
+        padding-inline-start: var(--chakra-space-3);
+        padding-inline-end: var(--chakra-space-3);
+        background: var(--chakra-colors-whiteAlpha-200);
+    }
+    .css-1t3af2r:disabled, .css-1t3af2r[data-hover] {
+        background: var(--chakra-colors-whiteAlpha-300);
+        cursor: not-allowed;
+    }
+    /* red button*/
+    .css-ejxey[disabled], .css-ejxey[aria-disabled="true"], .css-ejxey[data-disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+    box-shadow: var(--chakra-shadows-none);
+    }
+    .css-ejxey {
+        display: inline-flex;
+        appearance: none;
+        -webkit-box-align: center;
+        align-items: center;
+        -webkit-box-pack: center;
+        justify-content: center;
+        user-select: none;
+        position: relative;
+        white-space: nowrap;
+        vertical-align: middle;
+        outline: transparent solid 2px;
+        outline-offset: 2px;
+        width: 100%;
+        line-height: 1.2;
+        border-radius: var(--chakra-radii-md);
+        font-weight: var(--chakra-fontWeights-semibold);
+        transition-property: var(--chakra-transition-property-common);
+        transition-duration: var(--chakra-transition-duration-normal);
+        height: var(--chakra-sizes-8);
+        min-width: var(--chakra-sizes-8);
+        font-size: var(--chakra-fontSizes-sm);
+        padding-inline-start: var(--chakra-space-3);
+        padding-inline-end: var(--chakra-space-3);
+        background: var(--chakra-colors-red-200);
+        color: var(--chakra-colors-gray-800);
+    }
+    `
 }
