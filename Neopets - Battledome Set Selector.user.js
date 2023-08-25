@@ -1,12 +1,14 @@
 // ==UserScript==
-// @name         Neopets - Battledome Set Selector <MettyNeo>
-// @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as skipping the final battle animation to pull up the victory screen without prompt.
+// @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
+// @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      1.6
+// @version      1.7
 // @icon         https://i.imgur.com/RnuqLRm.png
-// @match        https://www.neopets.com/dome/arena.phtml
+// @match        https://www.neopets.com/dome/arena.phtml*
+// @match        https://www.neopets.com/dome/fight.phtml*
 // @grant GM_setValue
 // @grant GM_getValue
+// @grant GM_deleteValue
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
 // ==/UserScript==
@@ -14,145 +16,14 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-const HIGHLIGHT_MAX_REWARDS = true //makes the victory box red tinted if you're maxed on items. set to false to disable
+const HIGHLIGHT_MAX_REWARDS = true //makes the victory box green tinted if you're maxed on items. set to false to disable
 const ANIMATION_DELAY = 0 //delay (in ms) before skipping animations. 0 = no animation, -1 = disable animation skip
+const HIDE_USELESS_BUTTONS = true //hides the useless chat/animation buttons
+const IMPROVE_CHALLENGER_LIST = true //enables the 1P challenger list improvements, such as the favorites list and auto-selection.
 
-//==========
-// style css
-//==========
-
-//bar
-document.head.appendChild(document.createElement("style")).innerHTML = `
-    .bdbartext {
-        font-family: "Comic Sans MS", "Comic Sans", serif;
-        text-align: center;
-        text-overflow: hidden;
-        overflow: hidden;
-        padding: 2px;
-        margin: auto;
-        max-width: 100%;
-        max-height: 100%;
-        font-size: 14px;
-        line-height: 100%;
-        color: inherit;
-        cursor: default;
-    }
-
-    .bdbarclickable {
-        border-style: solid;
-        border-width: 1px;
-        border-color: #000;
-    }
-
-    .bdsetbar {
-        height: 80px;
-        width: 98%;
-        background-color: #CCCCCC;
-        margin: auto;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        padding: 0px 10px;
-        position: relative;
-    }
-
-    .bdsetcontainer {
-        height: 60px;
-        padding: 5px;
-        width: 18%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .bdsetbutton {
-        background-color: #FFFFFF;
-        height: 60px;
-        width: 100px;
-        margin: 2px;
-        display: flex;
-        justify-content: center;
-        flex-direction: column;
-        container-type: inline-size;
-    }
-
-    .activebutton {
-        cursor: pointer !important;
-    }
-    .activebutton:active {
-        background-color: #DEDEDE; /* haha nice */
-    }
-
-    .bdsetthumbnail {
-        display: inline-flex;
-        justify-content: space-evenly;
-        align-items: center;
-        height: 70%;
-        width: 100%;
-    }
-
-    .bdseticoncontainer {
-        margin: auto;
-        padding: 4px;
-        height: 100%;
-        flex: 1;
-        display: flex;
-        align-items: center;
-    }
-
-    .bdseticon {
-        max-width:100%;
-        max-height:100%;
-        object-fit: cover;
-        position: relative;
-    }
-
-    .bdsetoptioncontainer {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .bdsetoption {
-        background-color: #C2D1D1;
-        padding: 2px;
-        margin: 1px 0px;
-    }
-    .activeoption {
-        cursor: pointer !important;
-    }
-    .activeoption:active {
-        background-color: #A5B5B5;
-    }
-`
-
-//settings window
-document.head.appendChild(document.createElement("style")).innerHTML = `
-    .settingswindow {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 100;
-        background-color: #FFFFFF;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start
-    }
-
-    .container-vertical {
-        display: flex;
-        justify-content: flex-start;
-        flex-direction: column;
-        padding: 10px;
-    }
-
-    .container-horizontal {
-        display: inline-flex;
-        justify-content: space-between;
-        margin-bottom: 4px;
-    }
-`
+//TO-DO:
+// - give obelisk opponents own section in BD list
+// - track and display obelisk points earned
 
 //==========
 // constants
@@ -171,29 +42,56 @@ const colormap = [red,blue,green,magenta,yellow]
 const nullset = {set:null, name:null, default:null}
 const nullautofill = {turn1:null, turn2:null, default:null}
 
-//const hovermult = 0.875 //becomes darker when hovered over
+const ROW_COLORS = {
+    1:"#a9bad4",
+    2:"#cce9eb",
+    3:"#cae3cf",
+    4:"#e3cbc8",
+    5:"#9fb9cc",
+    6:"#d6cbc1",
+    7:"#e6e4d8",
+    8:"#dcd3e3"
+}
 
 //=====
 // main
 //=====
 
-//adds bar once bd intro disappears
-//the magic happens from there :)
-const introObs = new MutationObserver(mutations => {
-    introbreak:
-    for(const mutation of mutations) {
-        for(const removed of mutation.removedNodes) {
-            if(removed.id === "introdiv") {
-                addBar() //adds set bar
-                handleItemLimit() //checks for when item limit has been reached
-                introObs.disconnect() //observation done
-                break introbreak
+//arena page (battle)
+if(window.location.href.includes("/dome/arena.phtml")) {
+    addArenaCSS()
+    //adds set selector bar once bd intro disappears
+    //the magic happens from there :)
+    const introObs = new MutationObserver(mutations => {
+        introbreak:
+        for(const mutation of mutations) {
+            for(const removed of mutation.removedNodes) {
+                if(removed.id === "introdiv") {
+                    addBar() //adds set bar
+                    handleItemLimit() //checks for when item limit has been reached
+                    //removes buttons
+                    if(HIDE_USELESS_BUTTONS) {
+                        $("#skipreplay")[0].style.visibility = "hidden"
+                        $("#chatbutton")[0].style.visibility = "hidden"
+                    }
+                    introObs.disconnect() //observation done
+                    break introbreak
+                }
             }
         }
-    }
-})
-introObs.observe($("#arenacontainer #playground")[0], {childList: true})
+    })
+    introObs.observe($("#arenacontainer #playground")[0], {childList: true})
+}
 
+//fight page (select)
+else if(window.location.href.includes("/dome/fight.phtml") && IMPROVE_CHALLENGER_LIST) {
+    applyDefaultNPC()
+    applyDefaultPet()
+    addFightCSS()
+    addTableCollapse()
+    modifyTable()
+    addStep3Toggle()
+}
 //================
 // create elements
 //================
@@ -542,18 +440,18 @@ function createSelect(i, set) {
     let o1=document.createElement("OPTION"), o2=document.createElement("OPTION"), o3=document.createElement("OPTION"), o4=document.createElement("OPTION")
     o1.value = null
     o1.label = "Never"
-    o1.innerHTML = "Never" //for some reason label doesnt work on some systems
+    o1.innerHTML = "Never"
     o2.value = 1
     o2.label = "First Turn"
-    o1.innerHTML = "First Turn"
+    o2.innerHTML = "First Turn"
     if(afset.turn1 != null && afset.turn1 != i) o2.disabled = true
     o3.value = 2
     o3.label = "Second Turn"
-    o1.innerHTML = "Second Turn"
+    o3.innerHTML = "Second Turn"
     if(afset.turn2 != null && afset.turn2 != i) o3.disabled = true
     o4.value = 3
     o4.label = "Default"
-    o1.innerHTML = "Default"
+    o4.innerHTML = "Default"
     if(afset.default != null && afset.default != i) o4.disabled = true
 
     //adds options
@@ -564,7 +462,7 @@ function createSelect(i, set) {
 
     //sets default value
     defselect.value = set.default
-
+    console.log(defselect)
     return defselect
 }
 
@@ -757,12 +655,10 @@ function selectSlot(slot, item, n=1) {
     slot.children[1].style.backgroundPosition = "0px 0px"
     slot.children[1].style.backgroundSize = "60px 60px"
     slot.children[1].style.backgroundImage = `url("${item}")`
-    if(!isAbility)
+    if(!isAbility) {
         slot.addEventListener("click", function(){ info.node.removeAttribute("style") })
-
-    //removes item from equipment menu
-    if(!isAbility)
         info.node.style.display = "none"
+    }
 
     return false
 }
@@ -780,6 +676,240 @@ function getCurrentItems() {
     return [getItemURL($("#arenacontainer #p1e1m")[0]),
     getItemURL($("#arenacontainer #p1e2m")[0]),
     getItemURL($("#arenacontainer #p1am")[0], true)]
+}
+
+
+//==================
+// challenger select
+//==================
+
+function applyDefaultPet() {
+    let name = GM_getValue("skiptopet")
+    if(name) {
+        let icon = $(`#bxlist > li > div.petThumbContainer[data-name="${name}"]`)
+        if(icon.length == 0) {
+            GM_deleteValue("skiptopet")
+            console.log(`[BD+] Pet ${name} not found, pet selection cleared.`)
+        }
+        else {
+            console.log(`[BD+] Skipping to Step 3 with pet ${name}.`)
+            //1ms delay added between clicks
+            icon[0].click()
+            setTimeout(()=>{$("#bdFightStep1 > div.nextStep").click()},1)
+            setTimeout(()=>{$("#bdFightStep2 > div.nextStep").click()},2)
+        }
+    }
+}
+
+function applyDefaultNPC() {
+    let npc = GM_getValue("defnpc")
+    let applyDefault = true //to prevent it from being applied multiple times
+    const obs = new MutationObserver(mutations => {
+        if($("#bdFightStep3").css("display") == "block" && applyDefault) {
+            if(npc) {
+                console.log("[BD+] Default challenger selected.")
+                $(`#npcTable tr.npcRow.favorite.default div.tough[data-tough="${npc.diff}"`)[0].click()
+            }
+            applyDefault = false
+        }
+        else {
+            applyDefault = true
+        }
+    })
+    obs.observe($("#bdFightStep3")[0], {attributes:true})
+}
+
+function addStep3Toggle() {
+    let div = document.createElement("div")
+    div.id = "step3toggle"
+    div.innerHTML = "Automatically select this pet for 1P"
+    let toggle = document.createElement("label")
+    toggle.classList.add("switch")
+    toggle.innerHTML = `<input type="checkbox"><span class="slider round"></span>`
+    if(GM_getValue("skiptopet")) toggle.querySelector("input").checked = true
+    //records pet name
+    toggle.addEventListener("click", (event)=>{
+        //overrides default behavior
+        event.stopPropagation()
+        event.preventDefault()
+        let toggled = !($("#step3toggle > label > input")[0].checked)
+        $("#step3toggle > label > input")[0].checked = toggled
+
+        if(toggled) {
+            let name = $(`#bdFightPetInfo > div.petInfoBox[style="display: block;"]`)[0].getAttribute("data-name")
+            GM_setValue("skiptopet", name)
+            console.log(`[BD+] Set to automatically select ${name} next time.`)
+        }
+        else {
+            GM_deleteValue("skiptopet")
+            console.log(`[BD+] Removed automatic pet selected.`)
+        }
+    })
+    //updates recorded pet name if pet is swapped
+    $("#bxlist")[0].addEventListener("click", (event) => {
+        if((event.target.tagName.toLowerCase() == "div" || event.target.tagName.toLowerCase() == "img") && $("#step3toggle > label > input")[0].checked) {
+            let name = $(`#bdFightPetInfo > div.petInfoBox[style="display: block;"]`)[0].getAttribute("data-name")
+            GM_setValue("skiptopet", name)
+            console.log(`[BD+] Set to automatically select ${name} next time.`)
+        }
+    })
+    div.appendChild(toggle)
+    $("#bdFightStep1")[0].appendChild(div)
+}
+
+function addTableCollapse() {
+    $("#bdFightStep3UI > div.npcContainer")[0].classList.add("collapsed")
+    let collapse = document.createElement("div")
+    collapse.classList.add("npccollapse")
+    collapse.innerHTML = "▼"
+    collapse.addEventListener("click", () => {
+        //expand
+        if($("#bdFightStep3UI > div.npcContainer")[0].classList.contains("collapsed")) {
+            $("#bdFightStep3UI > div.npcContainer")[0].classList.remove("collapsed")
+            $(".npccollapse")[0].innerHTML = "▲"
+        }
+        //retract
+        else {
+            $("#bdFightStep3UI > div.npcContainer")[0].classList.add("collapsed")
+            $(".npccollapse")[0].innerHTML = "▼"
+        }
+        //recalculate height - from page source code
+        let tableHeight = $("#npcTable").outerHeight();
+        $('#bdFight').css('min-height', tableHeight + 257);
+        let containerHeight = $('#bdFight').outerHeight();
+
+        $('#bdFightStepContainer').css('min-height', containerHeight + -60);
+        $('#bdFightStep3').css('min-height', containerHeight + -63);
+        $('#bdFightBorderExpansion').css('min-height', containerHeight + -263);
+	    $('#bdFightBorderBottom').css('top', containerHeight + -18);
+    })
+    $("#domeTitle")[0].appendChild(collapse)
+}
+
+//sorts the "better" domes first
+function getDomePriority(id) {
+    switch(id) {
+        case 1:
+            return 6
+        case 2:
+            return 3
+        case 3:
+            return 7
+        case 4:
+            return 2
+        case 5:
+            return 1
+        case 6:
+            return 5
+        case 7:
+            return 4
+        case 8:
+            return 0
+        default:
+            return 10
+    }
+}
+
+function getDifficulty(tr) {
+    return tr.querySelector("td.diff").getAttribute("data-diffs").replaceAll(",","").split(";").map(Number)
+}
+
+function compareDifficulty(a, b) {
+    let da = getDifficulty(a), db = getDifficulty(b)
+    for (let i = 0; i < 3; i++) {
+        let n = da[i] - db[i]
+        if(n != 0) return n
+    }
+    return 0
+}
+
+function modifyTable() {
+    //gets and sorts rows
+    let rows = Array.from($("#npcTable > tbody > tr.npcRow"))
+    rows.sort((a,b) => {
+        let t = getDomePriority(+a.getAttribute("data-domeid")) - getDomePriority(+b.getAttribute("data-domeid"))
+        if(t == 0) return compareDifficulty(a,b) //sorts by difficulties within its row
+        else return t
+    })
+    $("#npcTable > tbody")[0].innerHTML = ""
+
+    //modifies each row and adds it back
+    for(const row of rows) {
+        let newrow = modifyRow(row)
+        $("#npcTable > tbody")[0].appendChild(newrow)
+    }
+}
+
+function modifyRow(tr) {
+    //adds favorite button
+    let fav = document.createElement("div")
+    fav.classList.add("fav")
+    //updates favorite list on click
+    fav.addEventListener("click", (event) => {
+        const target = event.target || event.srcElement
+        const oppID = target.parentElement.getAttribute("data-oppid")
+        let favNPCs = GM_getValue("favnpcs", [])
+
+        //favorites list, sets default
+        if($("#bdFightStep3UI > div.npcContainer.collapsed").length > 0) {
+            //make new default
+            if(!target.parentElement.classList.contains("default")) {
+                //get toughness selected
+                let diff = target.parentElement.querySelector("div.tough.selected")?.getAttribute("data-tough")
+                if(!diff) window.alert("You must select a difficulty to set this challenger as your default!")
+                else {
+                    //remove any other defaults
+                    if($("tr.npcRow.favorite.default").length > 0) $("tr.npcRow.favorite.default")[0].classList.remove("default")
+                    //sets new default
+                    target.parentElement.classList.add("default")
+                    GM_setValue("defnpc", {id:tr.getAttribute("data-oppid"), diff:diff})
+                    console.log(`[BD+] NPC ID ${oppID} at difficulty ${diff} set as default.`)
+                }
+            }
+            //remove default
+            else {
+                target.parentElement.classList.remove("default")
+                GM_deleteValue("defnpc")
+                console.log(`[BD+] Default NPC removed.`)
+            }
+        }
+        else {
+            //remove as favorite
+            if(target.parentElement.classList.contains("favorite")) {
+                let i = favNPCs.indexOf(oppID);
+                if (i !== -1) {
+                  favNPCs.splice(i, 1);
+                }
+                GM_setValue("favnpcs", favNPCs)
+                target.parentElement.classList.remove("favorite")
+                target.parentElement.classList.remove("default")
+            }
+            //add to favorites
+            else {
+                favNPCs.push(oppID)
+                GM_setValue("favnpcs", favNPCs)
+                target.parentElement.classList.add("favorite")
+            }
+        }
+    })
+    tr.appendChild(fav)
+
+    //remembers settings
+    if(GM_getValue("favnpcs", []).includes(tr.getAttribute("data-oppid"))) tr.classList.add("favorite")
+    if(GM_getValue("defnpc")?.id?.includes(tr.getAttribute("data-oppid"))) tr.classList.add("default")
+
+    //auto selects last opponent
+    if(GM_getValue("lastnpc")?.id?.includes(tr.getAttribute("data-oppid"))) {
+
+    }
+    else {
+
+    }
+
+    //tints row
+    tr.style.backgroundColor = ROW_COLORS[+tr.getAttribute("data-domeid")]
+
+    return tr
 }
 
 //===============
@@ -997,4 +1127,308 @@ function getHex(color) {
         hex += c.toString(16).padStart(2, "0")
     })
     return hex
+}
+
+
+//==========
+// style css
+//==========
+
+function addArenaCSS() {
+    //bar
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+        .bdbartext {
+            font-family: "Comic Sans MS", "Comic Sans", serif;
+            text-align: center;
+            text-overflow: hidden;
+            overflow: hidden;
+            padding: 2px;
+            margin: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: 14px;
+            line-height: 100%;
+            color: inherit;
+            cursor: default;
+        }
+
+        .bdbarclickable {
+            border-style: solid;
+            border-width: 1px;
+            border-color: #000;
+        }
+
+        .bdsetbar {
+            height: 80px;
+            width: 98%;
+            background-color: #CCCCCC;
+            margin: auto;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0px 10px;
+            position: relative;
+        }
+
+        .bdsetcontainer {
+            height: 60px;
+            padding: 5px;
+            width: 18%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bdsetbutton {
+            background-color: #FFFFFF;
+            height: 60px;
+            width: 100px;
+            margin: 2px;
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+            container-type: inline-size;
+        }
+
+        .activebutton {
+            cursor: pointer !important;
+        }
+        .activebutton:active {
+            background-color: #DEDEDE; /* haha nice */
+        }
+
+        .bdsetthumbnail {
+            display: inline-flex;
+            justify-content: space-evenly;
+            align-items: center;
+            height: 70%;
+            width: 100%;
+        }
+
+        .bdseticoncontainer {
+            margin: auto;
+            padding: 4px;
+            height: 100%;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        .bdseticon {
+            max-width:100%;
+            max-height:100%;
+            object-fit: cover;
+            position: relative;
+        }
+
+        .bdsetoptioncontainer {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .bdsetoption {
+            background-color: #C2D1D1;
+            padding: 2px;
+            margin: 1px 0px;
+        }
+        .activeoption {
+            cursor: pointer !important;
+        }
+        .activeoption:active {
+            background-color: #A5B5B5;
+        }
+    `
+
+    //settings window
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+        .settingswindow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            background-color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .container-vertical {
+            display: flex;
+            justify-content: flex-start;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .container-horizontal {
+            display: inline-flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+    `
+}
+
+//fight.phtml
+function addFightCSS() {
+    document.head.appendChild(document.createElement("style")).innerHTML = `
+        div.npcContainer.collapsed tr.npcRow.favorite.default div.fav:hover::before {
+            content: "Remove Default";
+            width: 124px;
+        }
+        div.npcContainer.collapsed tr.npcRow.favorite div.fav:hover::before {
+            content: "Set as Default";
+            width: 110px;
+        }
+        div.npcContainer tr.npcRow.favorite div.fav:hover::before {
+            content: "Remove from Favorites";
+            width: 174px;
+        }
+        div.npcContainer div.fav:hover::before {
+            content: "Set as Favorite";
+            width: 110px;
+            padding: 2px;
+            text-align: center;
+            display: block;
+            position: absolute;
+            background-color: rgba(255,255,255,0.95);
+            border: 1px solid black;
+            font-size: 0.9em;
+            left: 60%;
+            bottom: 60%;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 1.0 !important;
+            visibility: visible;
+        }
+        div.npcContainer div.fav::before {
+            content: "";
+            opacity: 0;
+            transition-duration: 0.2s;
+            transition-property: opacity;
+        }
+        /*these 3 should be layered into 1 sprite sheet but i cant be assed*/
+        tr.favorite > div.fav {
+            background-image: url(https://i.imgur.com/P5xOsKL.png);
+        }
+        tr.favorite.default > div.fav {
+            background-image: url(https://i.imgur.com/8FAMSEM.png);
+        }
+        tr.selectedPveNpc > div.fav {
+        }
+        tr > div.fav {
+            width: 16px;
+            height: 16px;
+            background-size: 16px 16px;
+            background-image: url(https://i.imgur.com/PMhcKWC.png);
+            display: block;
+            position: absolute;
+            left: 287px;
+            top: 3px;
+            cursor: pointer;
+        }
+        tr.npcRow.selectedPveNpc {
+            background-color: #F0E68C !important;
+        }
+        .npcRow {
+            position: relative;
+        }
+        td.diff {
+            width: 75px;
+        }
+        td.tough {
+            width: 151px;
+        }
+        #bdFightStep3 {
+            min-height: fit-content !important;
+        }
+        .npccollapse {
+            font-size: 15px;
+            cursor: pointer;
+            user-select: none !important;
+        }
+        #domeTitle:has(+ div.npcContainer.collapsed) {
+            background-image: url(https://i.imgur.com/KY67k7i.png);
+        }
+        div.npcContainer.collapsed #npcTable tr:not(.favorite) {
+            display: none !important;
+        }
+        div.borderExpansion > br {
+            display: none;
+        }
+        #bdFightStep3FightButton {
+            transform: translateY(48px);
+        }
+        #quickfight {
+            top: 0px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+        }
+        #step3toggle {
+            bottom: 5px;
+            right: 132px;
+            display: flex;
+            align-items: center;
+            color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+        #step3toggle:has(input:checked) {
+            color: #2196F3;
+        }
+        /* modified from https://www.w3schools.com/howto/howto_css_switch.asp */
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 40px;
+          height: 23px;
+          margin-left: 6px;
+          font-size: 0.9em;
+        }
+        .switch input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 17px;
+          width: 17px;
+          left: 3px;
+          bottom: 3px;
+          background-color: white;
+          -webkit-transition: .4s;
+          transition: .4s;
+        }
+        input:checked + .slider {
+          background-color: #2196F3;
+        }
+        input:focus + .slider {
+          box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+          -webkit-transform: translateX(17px);
+          -ms-transform: translateX(17px);
+          transform: translateX(17px);
+        }
+        .slider.round {
+          border-radius: 34px;
+        }
+        .slider.round:before {
+          border-radius: 50%;
+        }
+    `
 }
