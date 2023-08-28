@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.2
+// @version      1.3
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -215,7 +215,7 @@ function parseCurrentBets() {
     let currentbets = Array.from($("#content > table > tbody > tr > td.content > center:nth-child(6) > center:nth-child(2) > table tr[bgcolor='white']")).filter(r => r.children.length == 5)
     let newBets = currentbets.length - GM_getValue("placedbets", []).length
     //only updates stored bet list if there are new bets detected (to deal with out-of-order loading)
-    if(newbets > 0) {
+    if(newBets > 0) {
         let betList = []
         let closeTab = false
         //parse each row
