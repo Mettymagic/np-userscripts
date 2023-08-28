@@ -2,15 +2,15 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      1.7
+// @version      1.8
 // @icon         https://i.imgur.com/RnuqLRm.png
-// @match        https://www.neopets.com/dome/arena.phtml*
-// @match        https://www.neopets.com/dome/fight.phtml*
+// @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
 // @grant GM_getValue
 // @grant GM_deleteValue
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Battledome%20Set%20Selector.user.js
+// @run-at       document-start
 // ==/UserScript==
 
 // Trans rights are human rights ^^
@@ -20,6 +20,8 @@ const HIGHLIGHT_MAX_REWARDS = true //makes the victory box green tinted if you'r
 const ANIMATION_DELAY = 0 //delay (in ms) before skipping animations. 0 = no animation, -1 = disable animation skip
 const HIDE_USELESS_BUTTONS = true //hides the useless chat/animation buttons
 const IMPROVE_CHALLENGER_LIST = true //enables the 1P challenger list improvements, such as the favorites list and auto-selection.
+const LOOT_DISPLAY = true //displays earned loot in the form of pretty progress bars
+const INDEX_REDIRECT = true //redirects off the main index page to the fight page
 
 //TO-DO:
 // - give obelisk opponents own section in BD list
@@ -57,41 +59,49 @@ const ROW_COLORS = {
 // main
 //=====
 
-//arena page (battle)
-if(window.location.href.includes("/dome/arena.phtml")) {
-    addArenaCSS()
-    //adds set selector bar once bd intro disappears
-    //the magic happens from there :)
-    const introObs = new MutationObserver(mutations => {
-        introbreak:
-        for(const mutation of mutations) {
-            for(const removed of mutation.removedNodes) {
-                if(removed.id === "introdiv") {
-                    addBar() //adds set bar
-                    handleItemLimit() //checks for when item limit has been reached
-                    //removes buttons
-                    if(HIDE_USELESS_BUTTONS) {
-                        $("#skipreplay")[0].style.visibility = "hidden"
-                        $("#chatbutton")[0].style.visibility = "hidden"
+//index page - redirects
+if(window.location.href.includes("/dome/index.phtml") || window.location.href == "https://www.neopets.com/dome/") {
+    window.location.replace("https://www.neopets.com/dome/fight.phtml")
+}
+//runs on page load
+window.addEventListener("DOMContentLoaded", function() {
+    //arena page (battle)
+    if(window.location.href.includes("/dome/arena.phtml")) {
+        addArenaCSS()
+        //adds set selector bar once bd intro disappears
+        //the magic happens from there :)
+        const introObs = new MutationObserver(mutations => {
+            introbreak:
+            for(const mutation of mutations) {
+                for(const removed of mutation.removedNodes) {
+                    if(removed.id === "introdiv") {
+                        addBar() //adds set bar
+                        handleItemLimit() //checks for when item limit has been reached
+                        //removes buttons
+                        if(HIDE_USELESS_BUTTONS && !limitObelisk()) {
+                            $("#skipreplay")[0].style.visibility = "hidden"
+                            $("#chatbutton")[0].style.visibility = "hidden"
+                        }
+                        introObs.disconnect() //observation done
+                        break introbreak
                     }
-                    introObs.disconnect() //observation done
-                    break introbreak
                 }
             }
-        }
-    })
-    introObs.observe($("#arenacontainer #playground")[0], {childList: true})
-}
+        })
+        introObs.observe($("#arenacontainer #playground")[0], {childList: true})
+    }
 
-//fight page (select)
-else if(window.location.href.includes("/dome/fight.phtml") && IMPROVE_CHALLENGER_LIST) {
-    applyDefaultNPC()
-    applyDefaultPet()
-    addFightCSS()
-    addTableCollapse()
-    modifyTable()
-    addStep3Toggle()
-}
+    //fight page (select)
+    else if(window.location.href.includes("/dome/fight.phtml") && IMPROVE_CHALLENGER_LIST) {
+        applyDefaultNPC()
+        applyDefaultPet()
+        addFightCSS()
+        addTableCollapse()
+        modifyTable()
+        addStep3Toggle()
+    }
+})
+
 //================
 // create elements
 //================
@@ -758,10 +768,18 @@ function addStep3Toggle() {
 }
 
 function addTableCollapse() {
-    $("#bdFightStep3UI > div.npcContainer")[0].classList.add("collapsed")
     let collapse = document.createElement("div")
     collapse.classList.add("npccollapse")
-    collapse.innerHTML = "▼"
+    //starts collapsed if user has any favorites
+    if(GM_getValue("favnpcs", []).length > 0) {
+        $("#bdFightStep3UI > div.npcContainer")[0].classList.add("collapsed")
+        collapse.innerHTML = "▼"
+    }
+    else {
+        collapse.innerHTML = "▲"
+        collapse.style.display = "none"
+    }
+    //toggles between all and favorites on click
     collapse.addEventListener("click", () => {
         //expand
         if($("#bdFightStep3UI > div.npcContainer")[0].classList.contains("collapsed")) {
@@ -882,7 +900,11 @@ function modifyRow(tr) {
                 }
                 GM_setValue("favnpcs", favNPCs)
                 target.parentElement.classList.remove("favorite")
-                target.parentElement.classList.remove("default")
+                //also removes as a default
+                if(target.parentElement.classList.contains("default")) {
+                    target.parentElement.classList.remove("default")
+                    GM_deleteValue("defnpc")
+                }
             }
             //add to favorites
             else {
@@ -890,6 +912,11 @@ function modifyRow(tr) {
                 GM_setValue("favnpcs", favNPCs)
                 target.parentElement.classList.add("favorite")
             }
+            //updates visibility of collapse
+            if(favNPCs.length == 0) {
+                $("div.npccollapse")[0].style.display = "none"
+            }
+            else $("div.npccollapse")[0].style.display = "block"
         }
     })
     tr.appendChild(fav)
@@ -1037,37 +1064,77 @@ function isObelisk() {
     }
     return res
 }
-//checks if item limit has been reached today and stores data if so
+//reads the reward screen
 function handleItemLimit() {
-    let limit = getData("bditemlimit")
-    let date = getDate()
+    const lootObs = new MutationObserver(mutations => {
+        //handles loot
+        let rewardCount = countRewards()
+        if(LOOT_DISPLAY) addLootBars()
+        if(rewardCount == 0) addEmptyDisplay()
+        if(hitItemLimit()) highlightItemLimit()
+        lootObs.disconnect()
+    })
+    lootObs.observe($("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0], {childList: true, subtree: true})
+}
 
-    //if we haven't hit item limit yet, observe for it
-    if(limit != date) {
-        console.log("[BSS] Enabled scanning for item limit.")
-        let loot = $("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0]
-        const lootObs = new MutationObserver(mutations => {
-            for(const mutation of mutations) {
-                if(hitItemLimit()) {
-                    setData("bditemlimit", date)
-                    highlightItemLimit()
-                    console.log("[BSS] Item limit reached and recorded.")
-                    lootObs.disconnect()
-                    break
-                }
-            }
-        })
-        lootObs.observe(loot, {childList: true, subtree: true})
+function addEmptyDisplay() {
+    //THIS IS WIP!
+}
+
+//creates the loot progress bars on the victory screen
+function addLootBars() {
+    let barCont = document.createElement("div")
+    barCont.classList.add("lootprogress")
+    //framework
+    let bar1 = document.createElement("div")
+    bar1.classList.add("lootprogress-cont")
+    let pbar = document.createElement("div")
+    pbar.classList.add("lootprogress-bar")
+    let tbar = document.createElement("div")
+    tbar.classList.add("lootprogress-text")
+    bar1.appendChild(pbar)
+    bar1.appendChild(tbar)
+    let bar2 = bar1.cloneNode(true)
+    //item bar
+    let w1 = GM_getValue("bdloottrack", {items:0, np:0}).items
+    bar1.querySelector(".lootprogress-bar").style.backgroundColor = "#1E90FF"
+    bar1.querySelector(".lootprogress-bar").style.width = `${w1/15.0*100.0}%`
+    bar1.querySelector(".lootprogress-text").innerHTML = `${w1} / 15 Items`
+    //np bar
+    let w2 = GM_getValue("bdloottrack", {items:0, np:0}).np
+    bar2.querySelector(".lootprogress-bar").style.backgroundColor = "#DAA520"
+    bar2.querySelector(".lootprogress-bar").style.width = `${w2/1500.0*100.0}%`
+    bar2.querySelector(".lootprogress-text").innerHTML = `${w2} / 1500 NP`
+
+    //adds loot bars to page
+    barCont.appendChild(bar1)
+    barCont.appendChild(bar2)
+    $("#bd_rewards")[0].appendChild(barCont)
+
+    //hides some messages that flood up the reward box with the bars
+    for(let li of Array.from($("#bd_rewardsloot li")).filter((li)=>{return li.innerHTML.includes("limit for today!") || li.innerHTML.includes("Sorry, you didn't win")})) {
+        li.style.display = "none"
     }
-    //otherwise deal with item limit stuff
-    else {
-        console.log("[BSS] Item limit previously reached.")
-        highlightItemLimit()
+    document.head.appendChild(document.createElement("style")).innerHTML = `#bd_rewards > div:last-of-type > b {display:none;}`
+    console.log("[BD+] Added loot bar display and hid redundant messages.")
+}
+
+function countRewards() {
+    let items = Array.from($("#bd_rewardsloot td > img")).filter((img)=>{return img.getAttribute("src") != "https://images.neopets.com/reg/started_bagofnp.gif"}).length
+    let np = Array.from($("#bd_rewardsloot td > img")).find((img)=>{return img.getAttribute("src") == "https://images.neopets.com/reg/started_bagofnp.gif"})?.getAttribute("alt")?.split(" ")?.[0] || 0
+    if(items > 0 || np > 0) {
+        let loot = GM_getValue("bdloottrack", {items:0, np:0})
+        loot.items += items
+        loot.np += np
+        GM_setValue("bdloottrack", loot)
+        console.log(`[BD+] ${items} item(s) and ${np} NP earned, loot recorded.`)
     }
+    return items + (np > 0 ? 1 : 0)
 }
 function hitItemLimit() {
     return $("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0].innerHTML
         .includes(`* You have reached the item limit for today! You can continue to fight, but no more items can be earned.`)
+        || GM_getValue("bdloottrack", {items:0, np:0}).items >= 15
 }
 function highlightItemLimit() {
     //doesnt highlight in obelisk fights
@@ -1079,6 +1146,7 @@ function highlightItemLimit() {
         win.querySelector("#bd_rewards").appendChild(msg)
     }
 }
+
 function limitObelisk() {
     return isObelisk() && getData("bditemlimit") == getDate()
 }
@@ -1237,6 +1305,37 @@ function addArenaCSS() {
         }
         .activeoption:active {
             background-color: #A5B5B5;
+        }
+        .lootprogress {
+            display: flex;
+            flex-direction: column;
+            height: 40px;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 100%;
+        }
+        .lootprogress-cont {
+            margin: 2px;
+            display: block;
+            position: relative;
+            width: 80%;
+            height: 18px;
+            background-color: #d1d1d1;
+            border-radius: 6px;
+        }
+        .lootprogress-bar {
+            display: block;
+            position: absolute;
+            left: 0;
+            height: 100%;
+            border-radius: 6px;
+        }
+        .lootprogress-text {
+            display: block;
+            position: absolute;
+            left: 10px;
+            font-weight: bold;
         }
     `
 
