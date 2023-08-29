@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      1.8
+// @version      2.0
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -16,16 +16,20 @@
 // Trans rights are human rights ^^
 // metty says hi
 
+// You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
+// Modify aspects of this script at your own risk as modifications that give an advantage are against the Neopets rules.
+// Feel free to contact me at @mettymagic on discord for any questions or inquiries. ^^
+
 const HIGHLIGHT_MAX_REWARDS = true //makes the victory box green tinted if you're maxed on items. set to false to disable
 const ANIMATION_DELAY = 0 //delay (in ms) before skipping animations. 0 = no animation, -1 = disable animation skip
 const HIDE_USELESS_BUTTONS = true //hides the useless chat/animation buttons
 const IMPROVE_CHALLENGER_LIST = true //enables the 1P challenger list improvements, such as the favorites list and auto-selection.
 const LOOT_DISPLAY = true //displays earned loot in the form of pretty progress bars
 const INDEX_REDIRECT = true //redirects off the main index page to the fight page
+const LOOSE_OBELISK_RESTRICTIONS = true //allows the script to be used in obelisk battles if you haven't done your 10 battles or if you haven't earned your 15 items. honor means nothing compared to convenience.
 
 //TO-DO:
 // - give obelisk opponents own section in BD list
-// - track and display obelisk points earned
 
 //==========
 // constants
@@ -60,9 +64,12 @@ const ROW_COLORS = {
 //=====
 
 //index page - redirects
-if(window.location.href.includes("/dome/index.phtml") || window.location.href == "https://www.neopets.com/dome/") {
+if(window.location.href.includes("/dome/index.phtml") || window.location.href == "https://www.neopets.com/dome/" || window.location.href.includes("/dome/?")) {
     window.location.replace("https://www.neopets.com/dome/fight.phtml")
 }
+
+let difficulty = null //tracked for obelisk point calculation
+let obeliskContribution = 0
 //runs on page load
 window.addEventListener("DOMContentLoaded", function() {
     //arena page (battle)
@@ -75,10 +82,11 @@ window.addEventListener("DOMContentLoaded", function() {
             for(const mutation of mutations) {
                 for(const removed of mutation.removedNodes) {
                     if(removed.id === "introdiv") {
+                        difficulty = $("#p2hp")[0].innerHTML
                         addBar() //adds set bar
-                        handleItemLimit() //checks for when item limit has been reached
-                        //removes buttons
-                        if(HIDE_USELESS_BUTTONS && !limitObelisk()) {
+                        handleRewards() //deals with winning rewards
+                        //removes buttons if bar isn't disabled and animations are disabled
+                        if(HIDE_USELESS_BUTTONS && (!limitObelisk() && !is2Player()) && ANIMATION_DELAY >= 0) {
                             $("#skipreplay")[0].style.visibility = "hidden"
                             $("#chatbutton")[0].style.visibility = "hidden"
                         }
@@ -99,6 +107,11 @@ window.addEventListener("DOMContentLoaded", function() {
         addTableCollapse()
         modifyTable()
         addStep3Toggle()
+        //obelisk npc special case
+        let favobnpcs = GM_getValue("favobnpcs", [])
+        for(const id of favobnpcs) {
+            popObeliskFavorite(id)
+        }
     }
 })
 
@@ -120,58 +133,67 @@ function addBar() {
     let autofilled = -1 //prevents autofilling twice in same round
     //checks status bar for when turn is ready
     const statusObs = new MutationObserver(mutations => {
-        for(const mutation of mutations) {
-            if(status.textContent == "Plan your next move..."){
-                //populates the bar
-                if(firstLoad) {
-                    bar.innerHTML = ""
-                    fillBar(bar)
-                }
-                //skips animation if not obelisk
-                else if(!limitObelisk()){
-                    skipAnimation()
-                }
-                if(autofilled < getRoundCount()) {
-                    //autofill doesnt apply when obelisk limit is in place
-                    if(!limitObelisk()) {
-                        autofilled = getRoundCount()
-                        setDefault()
-                        if(firstLoad) skipAnimation(true) //fuck neopets for this one frfr
-                    }
-                }
-                firstLoad = false
-                break
+        if(status.textContent == "Plan your next move..."){
+            //populates the bar
+            if(firstLoad) {
+                bar.innerHTML = ""
+                fillBar(bar)
             }
+            //after first load, skips animation if not obelisk
+            else if(!limitObelisk()){
+                skipAnimation()
+            }
+            if(autofilled < getRoundCount() && (!limitObelisk() && !is2Player())) {
+                autofilled = getRoundCount()
+                setDefault()
+                if(firstLoad) skipAnimation(true) //fuck neopets for this one frfr
+            }
+            firstLoad = false
         }
     })
     statusObs.observe(status, {childList: true})
 
-    //checks hud for when battle is over, disables if obelisk limit in place
-    if(ANIMATION_DELAY >= 0 && !limitObelisk()) {
-        let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
-        const hpObs = new MutationObserver(mutations => {
-            for(const mutation of mutations) {
-                if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
-                    skipAnimation()
-                    hpObs.disconnect()
-                    break
+    //checks hud for when battle is over
+    let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
+    const hpObs = new MutationObserver(mutations => {
+        for(const mutation of mutations) {
+            if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
+                let obelisktrack = GM_getValue("obelisktrack", {count:0, points:0, date:-1})
+                //resets tracked loot on new day
+                if(getDate() != GM_getValue("bdloottrack", {items:0, np:0, date:null}).date) GM_deleteValue("bdloottrack")
+                //resets obelisk data after 4 days (aka the duration of the war)
+                if(new Date().valueOf() - obelisktrack.date > 1000*60*60*24*4) GM_deleteValue("obelisktrack")
+                //tracks obelisk contribution
+                if(isObelisk()) {
+                    //player hp above 0, win
+                    if(hud.children[5].innerHTML > 0) obeliskContribution = difficulty * 0.5
+                    //player hp is 0, either lose or draw
+                    else obeliskContribution = difficulty * 0.2
+
+                    obelisktrack.count += 1
+                    obelisktrack.points += obeliskContribution
+                    if(obelisktrack.date < 0) obelisktrack.date = new Date().valueOf()
+                    GM_setValue("obelisktrack", obelisktrack)
+
                 }
+                //skips final animation
+                if(!limitObelisk() && ANIMATION_DELAY >= 0) skipAnimation()
+                hpObs.disconnect()
+                break
             }
-        })
-        hpObs.observe(hud, {childList: true, subtree: true})
-    }
+
+        }
+    })
+    hpObs.observe(hud, {childList: true, subtree: true})
 }
 
 //checks to see if bar should be populated before doing that
 function fillBar(bar) {
     //script is disabled for obelisk once item limit hit
     if(isObelisk()) {
-        let limit = getData("bditemlimit")
-        let date = getDate()
-        //havent hit item limit yet today, not blocked
-        if(limit != date) {
+        if(!limitObelisk()) {
             if(firstLoad) {
-                console.log("[BSS] Obelisk battle detected but daily item limit not reached, BSS permitted.")
+                console.log("[BSS] Obelisk battle permitted, honor discarded.")
                 console.log("[BSS] Populating BSS bar.")
             }
             else console.log("[BSS] Refreshing BSS bar.")
@@ -180,10 +202,9 @@ function fillBar(bar) {
         }
         //hit item limit today, blocked
         else {
-            console.log("[BSS] Obelisk battle beyond daily limit detected, BSS disabled.")
+            console.log("[BSS] Obelisk battle detected, BSS denied to prevent advantage.")
             bar.innerHTML = "<i>A true warrior enters the battlefield with honor.</i>\n<i><small>The Obelisk rejects those who require assistance in battle. Prove your faction's worth on your own.</small></i>"
         }
-        if(firstLoad) addObeliskContribution()
     }
     //script is disabled for 2p
     else if(is2Player()) {
@@ -858,6 +879,40 @@ function modifyTable() {
     }
 }
 
+function isObeliskNPC(tr) {
+    let style = tr.querySelector("td.image > div").getAttribute("style")
+    for(const tag of obelisktags){
+        if(style.includes(tag)) {
+            let n = style.match(new RegExp(`.*?dome\/npcs.*?_${tag}(\d).*`))[1]
+            return n
+        }
+    }
+    return false
+}
+
+function popObeliskFavorite(n) {
+    //add to favorites list
+    if(GM_getValue("favobnpcs", []).includes(n)) {
+        let list = Array.from($("#npcTable tr.npcRow:not(.favorite)")).filter((tr)=>{
+            let x = isObeliskNPC(tr)
+            return x == n
+        })
+        for(let tr of list) {
+            tr.classList.add("favorite")
+        }
+    }
+    //remove from favorites list
+    else {
+        let list = Array.from($("#npcTable tr.npcRow.favorite")).filter((tr)=>{
+            let x = isObeliskNPC(tr)
+            return x == n
+        })
+        for(let tr of list) {
+            tr.classList.remove("favorite")
+        }
+    }
+}
+
 function modifyRow(tr) {
     //adds favorite button
     let fav = document.createElement("div")
@@ -893,24 +948,46 @@ function modifyRow(tr) {
         }
         else {
             //remove as favorite
+            let n = target.parentElement.getAttribute("obelisk-id")
             if(target.parentElement.classList.contains("favorite")) {
-                let i = favNPCs.indexOf(oppID);
-                if (i !== -1) {
-                  favNPCs.splice(i, 1);
+                //special case for obelisk challenger
+                if(n) {
+                    let favobnpcs = GM_getValue("favobnpcs", [])
+                    let i = favobnpcs.indexOf(n);
+                    if (i !== -1) {
+                      favobnpcs.splice(i, 1);
+                    }
+                    GM_setValue("favobnpcs", favobnpcs)
+                    popObeliskFavorite(n)
                 }
-                GM_setValue("favnpcs", favNPCs)
-                target.parentElement.classList.remove("favorite")
-                //also removes as a default
-                if(target.parentElement.classList.contains("default")) {
-                    target.parentElement.classList.remove("default")
-                    GM_deleteValue("defnpc")
+                else {
+                    let i = favNPCs.indexOf(oppID);
+                    if (i !== -1) {
+                      favNPCs.splice(i, 1);
+                    }
+                    GM_setValue("favnpcs", favNPCs)
+                    target.parentElement.classList.remove("favorite")
+                    //also removes as a default
+                    if(target.parentElement.classList.contains("default")) {
+                        target.parentElement.classList.remove("default")
+                        GM_deleteValue("defnpc")
+                    }
                 }
             }
             //add to favorites
             else {
-                favNPCs.push(oppID)
-                GM_setValue("favnpcs", favNPCs)
-                target.parentElement.classList.add("favorite")
+                //special case for obelisk challenger
+                if(n) {
+                    let favobnpcs = GM_getValue("favobnpcs", [])
+                    favobnpcs.push(n)
+                    GM_setValue("favobnpcs", favobnpcs)
+                    popObeliskFavorite(n)
+                }
+                else {
+                    favNPCs.push(oppID)
+                    GM_setValue("favnpcs", favNPCs)
+                    target.parentElement.classList.add("favorite")
+                }
             }
             //updates visibility of collapse
             if(favNPCs.length == 0) {
@@ -925,13 +1002,9 @@ function modifyRow(tr) {
     if(GM_getValue("favnpcs", []).includes(tr.getAttribute("data-oppid"))) tr.classList.add("favorite")
     if(GM_getValue("defnpc")?.id?.includes(tr.getAttribute("data-oppid"))) tr.classList.add("default")
 
-    //auto selects last opponent
-    if(GM_getValue("lastnpc")?.id?.includes(tr.getAttribute("data-oppid"))) {
-
-    }
-    else {
-
-    }
+    //marks obelisk npcs
+    let n = isObeliskNPC(tr)
+    if(n) tr.setAttribute("obelisk-id", n)
 
     //tints row
     tr.style.backgroundColor = ROW_COLORS[+tr.getAttribute("data-domeid")]
@@ -1053,6 +1126,7 @@ const guildmap = {
 }
 const guildNameMap = []
 function isObelisk() {
+    return "Sway" //remove this
     let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
     let url = p2.style.backgroundImage
     let res = null
@@ -1065,14 +1139,14 @@ function isObelisk() {
     return res
 }
 //reads the reward screen
-function handleItemLimit() {
+function handleRewards() {
     const lootObs = new MutationObserver(mutations => {
-        //handles loot
-        let rewardCount = countRewards()
-        if(LOOT_DISPLAY) addLootBars()
-        if(rewardCount == 0) addEmptyDisplay()
-        if(hitItemLimit()) highlightItemLimit()
         lootObs.disconnect()
+        let rewardCount = countRewards() //counts and records rewards earned
+        if(LOOT_DISPLAY) addLootBars() //adds display for prize tally
+        if(rewardCount == 0) addEmptyDisplay() //shows a unique display for earning nothing
+        if(hitItemLimit()) highlightItemLimit() //highlights the win div if you've earned max rewards
+        addObeliskContribution() //adds obelisk contribution
     })
     lootObs.observe($("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0], {childList: true, subtree: true})
 }
@@ -1115,7 +1189,6 @@ function addLootBars() {
     for(let li of Array.from($("#bd_rewardsloot li")).filter((li)=>{return li.innerHTML.includes("limit for today!") || li.innerHTML.includes("Sorry, you didn't win")})) {
         li.style.display = "none"
     }
-    document.head.appendChild(document.createElement("style")).innerHTML = `#bd_rewards > div:last-of-type > b {display:none;}`
     console.log("[BD+] Added loot bar display and hid redundant messages.")
 }
 
@@ -1123,42 +1196,40 @@ function countRewards() {
     let items = Array.from($("#bd_rewardsloot td > img")).filter((img)=>{return img.getAttribute("src") != "https://images.neopets.com/reg/started_bagofnp.gif"}).length
     let np = Array.from($("#bd_rewardsloot td > img")).find((img)=>{return img.getAttribute("src") == "https://images.neopets.com/reg/started_bagofnp.gif"})?.getAttribute("alt")?.split(" ")?.[0] || 0
     if(items > 0 || np > 0) {
-        let loot = GM_getValue("bdloottrack", {items:0, np:0})
+        let loot = GM_getValue("bdloottrack", {items:0, np:0, date:null})
+        if(getDate() != loot.date) loot = {items:0, np:0, date:null} //resets on new day
         loot.items += items
         loot.np += np
+        loot.date = getDate()
         GM_setValue("bdloottrack", loot)
         console.log(`[BD+] ${items} item(s) and ${np} NP earned, loot recorded.`)
     }
     return items + (np > 0 ? 1 : 0)
 }
 function hitItemLimit() {
-    return $("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0].innerHTML
-        .includes(`* You have reached the item limit for today! You can continue to fight, but no more items can be earned.`)
-        || GM_getValue("bdloottrack", {items:0, np:0}).items >= 15
+    return GM_getValue("bdloottrack", {items:0, np:0}).items >= 15
 }
 function highlightItemLimit() {
     //doesnt highlight in obelisk fights
-    if(HIGHLIGHT_MAX_REWARDS && !isObelisk()) {
-        let win = $("#arenacontainer #bdPopupGeneric-winnar")[0]
-        let msg = document.createElement("div")
-        win.getElementsByClassName("middle")[0].style.backgroundColor = "#D0EDCA"
-        msg.innerHTML = "<b>You have reached the maximum item limit!</b>"
-        win.querySelector("#bd_rewards").appendChild(msg)
+    if(HIGHLIGHT_MAX_REWARDS && hitItemLimit() && !isObelisk()) {
+        $("#arenacontainer #bdPopupGeneric-winnar")[0].getElementsByClassName("middle")[0].style.backgroundColor = "#D0EDCA"
     }
 }
 
+//obelisk limits apply if you've done less than 10 obelisk fights and you've collected your daily prizes
 function limitObelisk() {
-    return isObelisk() && getData("bditemlimit") == getDate()
+    return isObelisk() && ((GM_getValue("obelisktrack", {count:0, points:0}).count >= 10 && GM_getValue("bdloottrack", {items:0, np:0, date:null}).items == 15) || !LOOSE_OBELISK_RESTRICTIONS)
 }
 function addObeliskContribution() {
-    let obelisk = isObelisk()
-    if(isObelisk != null) {
-        let win = $("#arenacontainer #bdPopupGeneric-winnar")[0]
-        let msg = document.createElement("div")
-        if(obelisk.slice(-1) == 's') var plural = "have"
+    let guild = isObelisk()
+    if(guild) {
+        let msg = document.createElement("p")
+        let data = GM_getValue("obelisktrack", {count: 0, points:0, date: -1})
+        if(guild.slice(-1) == 's') var plural = "have"
         else plural = "has"
-        msg.innerHTML = `<b>Your contributions against The ${obelisk} ${plural} been recorded.</b>`
-        win.querySelector("#bd_rewards").appendChild(msg)
+        msg.innerHTML = `<b>Your contributions against The ${guild} ${plural} been recorded.</b><br>
+        <b>Total Battles: ${data.count} || Total Points: ${data.points} ( +${obeliskContribution} )</b>`
+        $("#bd_rewards")[0].appendChild(msg)
     }
 }
 function is2Player() {
