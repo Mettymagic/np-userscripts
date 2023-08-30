@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.2
+// @version      2.3
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -1155,7 +1155,7 @@ const HIGH_VALUE_LIST = ["armoured negg", "frozen negg", "bubbling fungus", "cho
 const RED_LIST = ["cui codestone", "kew codestone", "mag codestone", "sho codestone", "vux codestone", "zed codestone"]
 function rewardSort(name) {
     name = name.toLowerCase()
-    if(name == "nerkmid") return 50
+    if(name.includes("nerkmid")) return 50
     else if(HIGH_VALUE_LIST.includes(name)) return 40
     else if(name.includes("codestone")) {
         if(RED_LIST.includes(name)) return 30
