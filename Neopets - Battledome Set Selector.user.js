@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.1
+// @version      2.2
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -1302,9 +1302,9 @@ function addLootBars() {
 }
 
 function countRewards() {
-    let items = Array.from($("#bd_rewardsloot td")).filter((td)=>{return td.querySelector("img").getAttribute("src") != "https://images.neopets.com/reg/started_bagofnp.gif"})
+    let items = Array.from($("#bd_rewardsloot td")).filter((td)=>{return !td.querySelector("img").getAttribute("src").includes("images.neopets.com/reg/started_bagofnp.gif")})
 
-    let np = Array.from($("#bd_rewardsloot td > img")).find((img)=>{return img.getAttribute("src") == "https://images.neopets.com/reg/started_bagofnp.gif"})?.getAttribute("alt")?.split(" ")?.[0] || 0
+    let np = Array.from($("#bd_rewardsloot td > img")).find((img)=>{return img.getAttribute("src").includes("images.neopets.com/reg/started_bagofnp.gif")})?.getAttribute("alt")?.split(" ")?.[0] || 0
     if(items.length > 0 || np > 0) {
         let loot = GM_getValue("bdloottrack", {items:0, lootlist: {}, np:0, date:null})
         if(getDate() != loot.date) loot = {items:0, lootlist: {}, np:0, date:null} //resets on new day
