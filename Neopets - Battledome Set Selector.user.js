@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.0
+// @version      2.1
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -1126,7 +1126,6 @@ const guildmap = {
 }
 const guildNameMap = []
 function isObelisk() {
-    return "Sway" //remove this
     let p2 = $("#arenacontainer #playground #gQ_scenegraph #p2 #p2image")[0]
     let url = p2.style.backgroundImage
     let res = null
@@ -1144,15 +1143,125 @@ function handleRewards() {
         lootObs.disconnect()
         let rewardCount = countRewards() //counts and records rewards earned
         if(LOOT_DISPLAY) addLootBars() //adds display for prize tally
-        if(rewardCount == 0) addEmptyDisplay() //shows a unique display for earning nothing
+        if(rewardCount == 0 && LOOT_DISPLAY) addEmptyDisplay() //shows a unique display for earning nothing
         if(hitItemLimit()) highlightItemLimit() //highlights the win div if you've earned max rewards
+        if(LOOT_DISPLAY) addRewardList() //adds the list of rewards
         addObeliskContribution() //adds obelisk contribution
     })
     lootObs.observe($("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0], {childList: true, subtree: true})
 }
 
+const HIGH_VALUE_LIST = ["armoured negg", "frozen negg", "bubbling fungus", "chocolate ice cream"]
+const RED_LIST = ["cui codestone", "kew codestone", "mag codestone", "sho codestone", "vux codestone", "zed codestone"]
+function rewardSort(name) {
+    name = name.toLowerCase()
+    if(name == "nerkmid") return 50
+    else if(HIGH_VALUE_LIST.includes(name)) return 40
+    else if(name.includes("codestone")) {
+        if(RED_LIST.includes(name)) return 30
+        else return 20
+    }
+    else if(name.includes("dubloon coin")) return 10+dubloonSort(name)
+    else if(name.includes("neocola token")) return 10
+    else return 0
+}
+function dubloonSort(name) {
+    if(name == "one dubloon coin") return 1
+    else if(name == "two dubloon coin") return 2
+    else if(name == "five dubloon coin") return 3
+    else if(name == "ten dubloon coin") return 4
+    else return 0
+}
+function addRewardList() {
+    let list = GM_getValue("bdloottrack", {items:0, lootlist: {}, np:0, date:null}).lootlist
+    let table = document.createElement("table")
+    table.id = "bdlootdisplay"
+    let tbody = table.appendChild(document.createElement("tbody"))
+    let th = document.createElement("th")
+    th.innerHTML = "Today's Prizes"
+    let copy = document.createElement("a")
+    copy.innerHTML = "(copy)"
+    copy.style = "position:absolute; display: block; top: 5px; right: 5px; font-size: 6pt; color: blue; cursor: pointer;"
+    //copies the formatted item list for convenience
+    copy.addEventListener("click", (event) => {
+        let str = "__Battledome Prizes - " + getDate() + "__\n"
+        for(const tr of Array.from($("#bdlootdisplay tr"))) {
+            if(tr.getAttribute("style")) str += "*"
+            str += tr.querySelector("td").innerHTML
+            if(tr.getAttribute("style")) str += "*"
+            str += "\n"
+        }
+        navigator.clipboard.writeText(str.trim());
+        event.target.innerHTML = "(copied!)"
+        console.log("[BD+] Copied prize list to clipboard.")
+    })
+    th.appendChild(copy)
+    tbody.appendChild(th)
+
+    //sorts reward list
+    let items = Object.keys(list)
+    items.sort((a, b) => {
+        let t = rewardSort(b) - rewardSort(a)
+        if(t == 0) return b.localeCompare(a)
+        else return t
+    })
+
+    //empty list
+    if(items.length == 0) {
+        let row = document.createElement("tr")
+        let cell = document.createElement("td")
+        cell.innerHTML = `<i>You haven't won anything!</i>`
+        row.appendChild(cell)
+        tbody.appendChild(row)
+    }
+    //displays each item in list
+    else {
+        for(const name of items) {
+            let row = document.createElement("tr")
+            let cell = document.createElement("td")
+            cell.innerHTML = `${name} x ${list[name]}`
+            row.appendChild(cell)
+            tbody.appendChild(row)
+            //unfocus junk items
+            if(rewardSort(name.toLowerCase()) == 0) {
+                row.style.backgroundColor = "lightgray"
+                row.style.fontStyle = "italic"
+            }
+        }
+    }
+
+    $("#bdPopupGeneric-winnar")[0].appendChild(table)
+    console.log("[BD+] Displaying prize table.")
+}
+
+//lets have some fun with the no reward display
+const SAD_ITEMS = [
+    "https://images.neopets.com/items/hfo_depressed_potato.gif",
+    "https://images.neopets.com/items/plu_grey_kacheek.gif",
+    "https://images.neopets.com/items/petpet_frowny.gif",
+    "https://images.neopets.com/items/grey_ghostkerchief.gif",
+    "https://images.neopets.com/items/boo_jubjub_tellmewhy.gif",
+    "https://images.neopets.com/items/cirrus_grey.gif",
+    "https://images.neopets.com/items/plu_grundo_grey.gif",
+    "https://images.neopets.com/items/foo_grey_toast.gif"
+]
+const SAD_BGS = [
+    "https://outfits.openneo-assets.net/outfits/2908566/v/1693339777/150.png",
+    "https://outfits.openneo-assets.net/outfits/2908567/v/1693339872/150.png",
+    "https://outfits.openneo-assets.net/outfits/2908568/v/1693339886/150.png"
+
+]
 function addEmptyDisplay() {
-    //THIS IS WIP!
+    if(GM_getValue("bdloottrack", {items:0, lootlist: {}, np:0, date:null}).items >= 15) var msg = "You can't get any more items. :("
+    else msg = "You didn't win anything. :("
+    let td = document.createElement("td")
+    td.style = "width:90px; position:relative;"
+    td.innerHTML = `
+        <div style="background-image: url(${SAD_BGS[Math.floor(Math.random() * SAD_BGS.length)]}); background-size: 84px 84px; background-position:top; background-repeat: no-repeat;">
+            <div style="width:80px;height:80px;border:2px solid black;"><img src="${SAD_ITEMS[Math.floor(Math.random() * SAD_ITEMS.length)]}" alt="No Prize" height="80" width="80" style="opacity:0.7;-webkit-filter:grayscale(100%);filter:grayscale(100%);"></div><span class="prizname" style="color: #303030; font-weight: normal; font-style: italic;">${msg}</span>
+        </div>
+    `
+    $("#bd_rewardsloot > tbody > tr")[0].appendChild(td)
 }
 
 //creates the loot progress bars on the victory screen
@@ -1193,18 +1302,31 @@ function addLootBars() {
 }
 
 function countRewards() {
-    let items = Array.from($("#bd_rewardsloot td > img")).filter((img)=>{return img.getAttribute("src") != "https://images.neopets.com/reg/started_bagofnp.gif"}).length
+    let items = Array.from($("#bd_rewardsloot td")).filter((td)=>{return td.querySelector("img").getAttribute("src") != "https://images.neopets.com/reg/started_bagofnp.gif"})
+
     let np = Array.from($("#bd_rewardsloot td > img")).find((img)=>{return img.getAttribute("src") == "https://images.neopets.com/reg/started_bagofnp.gif"})?.getAttribute("alt")?.split(" ")?.[0] || 0
-    if(items > 0 || np > 0) {
-        let loot = GM_getValue("bdloottrack", {items:0, np:0, date:null})
-        if(getDate() != loot.date) loot = {items:0, np:0, date:null} //resets on new day
-        loot.items += items
-        loot.np += np
-        loot.date = getDate()
+    if(items.length > 0 || np > 0) {
+        let loot = GM_getValue("bdloottrack", {items:0, lootlist: {}, np:0, date:null})
+        if(getDate() != loot.date) loot = {items:0, lootlist: {}, np:0, date:null} //resets on new day
+        if(loot.lootlist == undefined) loot.lootlist = {} //to be extra cautious
+
+        //grabs the item names and adds to earned item list
+        for(const td of items) {
+            let name = td.querySelector("span").innerHTML
+            //increments the item's count
+            console.log(name)
+            if(loot.lootlist.hasOwnProperty(name)) loot.lootlist[name] += 1
+            else loot.lootlist[name] = 1
+        }
+
+        loot.items += items.length
+        loot.np = Number(loot.np) + Number(np) //because js is fucky, np is grabbed as a string so we have to make them numbers first
+        loot.date = getDate() //records current date
+
         GM_setValue("bdloottrack", loot)
         console.log(`[BD+] ${items} item(s) and ${np} NP earned, loot recorded.`)
     }
-    return items + (np > 0 ? 1 : 0)
+    return items.length + (np > 0 ? 1 : 0) //returns true if there were any rewards and false (aka 0) if there weren't
 }
 function hitItemLimit() {
     return GM_getValue("bdloottrack", {items:0, np:0}).items >= 15
@@ -1223,13 +1345,16 @@ function limitObelisk() {
 function addObeliskContribution() {
     let guild = isObelisk()
     if(guild) {
-        let msg = document.createElement("p")
+        let div = document.createElement("div")
+        div.style = "border-radius: 1px; position:absolute; display:block; bottom: -82px; text-align: center; height: 64px; z-index: 1; right: 0px; border: 2px solid black; background-color: lightgrey; background-image: url(https://i.imgur.com/VttRWYx.png); background-size:100%; background-position: bottom;"
+        let msg = div.appendChild(document.createElement("div"))
+        msg.style = "background-color:rgba(255,255,255,0.9); padding: 6px; height: 30px; margin: 13px; border-radius: 1px;"
         let data = GM_getValue("obelisktrack", {count: 0, points:0, date: -1})
         if(guild.slice(-1) == 's') var plural = "have"
         else plural = "has"
         msg.innerHTML = `<b>Your contributions against The ${guild} ${plural} been recorded.</b><br>
-        <b>Total Battles: ${data.count} || Total Points: ${data.points} ( +${obeliskContribution} )</b>`
-        $("#bd_rewards")[0].appendChild(msg)
+        <b>Total Battles: ${data.count} | Total Points: ${data.points} ( +${obeliskContribution} )</b>`
+        $("#bdPopupGeneric-winnar")[0].appendChild(div)
     }
 }
 function is2Player() {
@@ -1407,6 +1532,33 @@ function addArenaCSS() {
             position: absolute;
             left: 10px;
             font-weight: bold;
+        }
+        #bdrewards p {
+            margin-top: 0px;
+        }
+        #bdlootdisplay {
+            display: table;
+            width: 210px;
+            position: absolute;
+            z-index: 1;
+            left: 103%;
+            top: 0;
+            background-color: white;
+            border: 2px solid;
+            border-collapse: collapse;
+        }
+        #bdlootdisplay th, #bdlootdisplay tr {
+            border: 1px solid black;
+            font-size: 8pt;
+            padding: 4px;
+        }
+        #bdlootdisplay td {
+            padding: 2px 4px;
+        }
+        #bdlootdisplay th {
+            border-bottom: 2px solid black;
+            font-size: 10pt;
+            background-color: #ffffb3;
         }
     `
 
