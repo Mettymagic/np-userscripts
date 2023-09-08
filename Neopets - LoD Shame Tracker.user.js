@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Lever of Doom Shame Tracker
-// @version      1.1
+// @version      1.2
 // @description  Tracks the amount of money you have lost to the Lever of Doom.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -79,13 +79,13 @@ if(window.location.href.includes("leverofdoom.phtml")) {
             if(doc.title != "Neoboard Settings") {
                 console.log("[APS] Neoboard Settings request blocked by stackpath. :(")
             }
-            console.log(Array.from(doc.querySelectorAll("#SelectAvatarPopup > div.popup-body__2020 > div:nth-child(3) > div.settings-av")))
+            //find avvie from list
             let avvie = Array.from(doc.querySelectorAll("#SelectAvatarPopup > div.popup-body__2020 > div:nth-child(3) > div.settings-av")).find((div) => {return div.innerHTML.includes("Lever of Doom")})
             if(avvie) {
                 GM_setValue("hasAvvie", true)
-                console.log("Lever of Doom avatar earned! Congrats!")
+                console.log("[LoD] Lever of Doom avatar earned! Congrats!")
             }
-            console.log("[LoD] Successfully checked avatar list.")
+            else console.log("[LoD] No avatar yet. Keep trying!")
         })
     }
 }
