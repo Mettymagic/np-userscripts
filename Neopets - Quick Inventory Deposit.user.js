@@ -8,6 +8,8 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @icon         https://i.imgur.com/RnuqLRm.png
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Quick%20Inventory%20Deposit.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Quick%20Inventory%20Deposit.user.js
 // ==/UserScript==
 
 // You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
