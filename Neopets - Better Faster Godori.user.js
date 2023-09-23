@@ -1,20 +1,32 @@
 // ==UserScript==
 // @name         Neopets - Better Faster Godori <MettyNeo>
-// @version      1.0
+// @version      1.1
 // @description  Greatly enhances the speed of the game by reducing delay and clicks required to play
 // @author       Metamagic
 // @match        https://www.neopets.com/games/godori/godori.phtml
 // @match        https://www.neopets.com/games/godori/index.phtml
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Better%20Faster%20Godori.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Better%20Faster%20Godori.user.js
 // @icon         https://i.imgur.com/RnuqLRm.png
 // ==/UserScript==
 
+// You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
+// Feel free to contact me at @mettymagic on discord for any questions or inquiries. ^^
 
+// Trans rights are human rights ^^
+// metty says hi
+
+const CARD_SORT = "CAPTURE" //set to "SCORE" to sort hand by scoring category
+const ACTION_DELAY = "0" //the delay in ms as a string. default: 1, unmodified fast speed is 500.
+
+//redirects back to game page
 if(window.location.href.includes("index.phtml")) {
     if(document.referrer.includes("godori.phtml")) {
         console.log("[BFG] Referred from game page, redirecting automatically.")
         $("#intro > tbody > tr:nth-child(2) > td > a")[0].click()
     }
 }
+//game modifications
 else {
     let CAPTURE_SETS = {
         "jan": 0,
@@ -38,10 +50,10 @@ else {
         "k": 8 //pet
     }
 
-    $("#fast")[0].value = "25" //delay in ms between moves
+    $("#fast")[0].value = ACTION_DELAY //delay in ms between moves
     $("#fast")[0].click() //updates internal delay variable
-    sortHand()
-    addListeners()
+    sortHand() //sorts hand at start
+    addListeners() //adds click listeners to hand
 
     //sorts hand based on capture set
     function sortHand() {
@@ -69,7 +81,8 @@ else {
     }
     function getCardValue(url) {
         let match = url.match(/.*?\/godori\/(.{3})(.{1}).*/)
-        return CAPTURE_SETS[match[1]]*10 + CARD_TYPE[match[2]]
+        if(CARD_SORT == "SCORE") return CAPTURE_SETS[match[1]] + CARD_TYPE[match[2]]*10
+        else return CAPTURE_SETS[match[1]]*10 + CARD_TYPE[match[2]]
     }
 
     //adds click listeners to cards in hand
