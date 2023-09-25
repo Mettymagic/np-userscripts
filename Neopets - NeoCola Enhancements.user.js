@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.0
+// @version      1.1
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -9,6 +9,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20NeoCola%20Enhancements.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20NeoCola%20Enhancements.user.js
 // ==/UserScript==
 
 // You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
