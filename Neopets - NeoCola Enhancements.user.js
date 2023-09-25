@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.2
+// @version      1.3
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -227,10 +227,10 @@ function modifyInputs() {
 
 //records the np and item earned
 function recordPrize(color) {
-    //collects results from page
+    //collects results from page#content > table > tbody > tr > td.content > div:nth-child(6) > b:nth-child(4)
     let np = parseInt($("#content > table > tbody > tr > td.content > div[align='center'] > b:first-of-type")[0].innerHTML.replaceAll(",", ""))
     let item = {
-        name: $("#content > table > tbody > tr > td.content > div[align='center']:first-of-type > b:last-of-type")[0].innerHTML,
+        name: $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML,
         img: $("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src
     }
 
@@ -267,7 +267,7 @@ function calcProb(n) {
 //calculates estimated probability of rolling a transmog on your next roll
 function estimateTransmogOdds() {
     let results = GM_getValue("results", EMPTY_RESULTS)
-    let name = $("#content > table > tbody > tr > td.content > div[align='center']:first-of-type > b:last-of-type")[0].innerHTML
+    let name = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
 
     //increments rolls since
     results.n_since += 1
