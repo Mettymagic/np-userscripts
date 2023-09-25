@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.3
+// @version      1.4
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -321,7 +321,7 @@ function modifyRewardsPage(color) {
         const res = results[color]
 
         //shows # of that item collected
-        let nameelement = $("#content > table > tbody > tr > td.content > div:first-of-type > b:last-of-type")[0]
+        let nameelement = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0]
         let count = res.items[nameelement.innerHTML].count
         let cdiv = document.createElement("small")
         cdiv.innerHTML = `<br>(in case you're wondering, you've collected <b>${count}</b> of these!)`
