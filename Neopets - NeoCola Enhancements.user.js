@@ -203,7 +203,7 @@ function modifyInputs() {
         else ncf.value = 7
 
         //selects button presses - higher index = more np
-        $(`select[name="red_button"]`)[0].value = 42
+        $(`select[name="red_button"]`)[0].value = 3
 
         console.log(`[NCE] Optimal selection options applied.`)
     }
