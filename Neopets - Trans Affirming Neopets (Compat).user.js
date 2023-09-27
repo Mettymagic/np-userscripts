@@ -7,6 +7,7 @@
 // @match        *://neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        none
+// @require      https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js
 // ==/UserScript==
 
 //make sure this script is the last of your userscripts to load!
@@ -36,3 +37,5 @@ function replaceDeadNames() {
         }
     }
 }
+
+$("#transhide")[0]?.remove()

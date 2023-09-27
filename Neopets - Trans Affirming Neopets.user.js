@@ -8,6 +8,7 @@
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        none
 // @run-at       document-body
+// @require      https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js
 // ==/UserScript==
 
 //pairs are in form of a regex statement and a string.
@@ -19,6 +20,7 @@ const REPLACE_PAIRS = [
 
 let style = document.createElement("style")
 style.innerHTML = `body { visibility: hidden; }`
+style.id = "transhide"
 document.head.appendChild(style)
 
 document.addEventListener("DOMContentLoaded", replaceDeadNames)
