@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.1
+// @version      1.4
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -106,7 +106,7 @@ else if(window.location.href.includes("neocola3.phtml")) {
 //gets the count of each token color
 function countTokenColors() {
     let colors = {"red":0, "green":0, "blue":0}
-    let display = $("#content > table > tbody > tr > td.content > div")[0]
+    let display = $("#content > table > tbody > tr > td.content > div[align='center']")[0]
     let tokens = Array.from(display.children).slice(6)
 
     //count number of each token color
@@ -125,7 +125,7 @@ function countTokenColors() {
 
 //compresses the giant list of token displays by displaying count per color
 function compressTokenDisplay(count) {
-    let display = $("#content > table > tbody > tr > td.content > div")[0]
+    let display = $("#content > table > tbody > tr > td.content > div[align='center']")[0]
     let machine = Array.from(display.children).slice(0, 6)
 
     //clear old token display
@@ -160,7 +160,7 @@ function modifyInputs() {
     //turns token display into input
     if(BETTER_SELECT_GUI) {
         //updates text
-        $("#content > table > tbody > tr > td.content > div > b")[0].innerHTML = "What color will you use?"
+        $("#content > table > tbody > tr > td.content > div[align='center'] > b")[0].innerHTML = "What color will you use?"
 
         //button starts inactive
          $("#content td.content > form input[type=submit]")[0].disabled = true
@@ -203,7 +203,7 @@ function modifyInputs() {
         else ncf.value = 7
 
         //selects button presses - higher index = more np
-        $(`select[name="red_button"]`)[0].value = 42
+        $(`select[name="red_button"]`)[0].value = 3
 
         console.log(`[NCE] Optimal selection options applied.`)
     }
@@ -227,11 +227,11 @@ function modifyInputs() {
 
 //records the np and item earned
 function recordPrize(color) {
-    //collects results from page
-    let np = parseInt($("#content > table > tbody > tr > td.content > div > b:first-of-type")[0].innerHTML.replaceAll(",", ""))
+    //collects results from page#content > table > tbody > tr > td.content > div:nth-child(6) > b:nth-child(4)
+    let np = parseInt($("#content > table > tbody > tr > td.content > div[align='center'] > b:first-of-type")[0].innerHTML.replaceAll(",", ""))
     let item = {
-        name: $("#content > table > tbody > tr > td.content > div:first-of-type > b:last-of-type")[0].innerHTML,
-        img: $("#content > table > tbody > tr > td.content > div > img:last-of-type")[0].src
+        name: $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML,
+        img: $("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src
     }
 
     let results = GM_getValue("results", EMPTY_RESULTS)
@@ -267,7 +267,7 @@ function calcProb(n) {
 //calculates estimated probability of rolling a transmog on your next roll
 function estimateTransmogOdds() {
     let results = GM_getValue("results", EMPTY_RESULTS)
-    let name = $("#content > table > tbody > tr > td.content > div:first-of-type > b:last-of-type")[0].innerHTML
+    let name = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
 
     //increments rolls since
     results.n_since += 1
@@ -321,7 +321,7 @@ function modifyRewardsPage(color) {
         const res = results[color]
 
         //shows # of that item collected
-        let nameelement = $("#content > table > tbody > tr > td.content > div:first-of-type > b:last-of-type")[0]
+        let nameelement = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0]
         let count = res.items[nameelement.innerHTML].count
         let cdiv = document.createElement("small")
         cdiv.innerHTML = `<br>(in case you're wondering, you've collected <b>${count}</b> of these!)`
