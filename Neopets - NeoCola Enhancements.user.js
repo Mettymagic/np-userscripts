@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.4
+// @version      1.5
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -19,21 +19,15 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-//TODO: add ability to export data, resetting stored stuff and doing something w it
+//TODO: add ability to export data, resetting stored stuff and doing something w it, record avg rolls til transmog and # of transmogs
 
 //==============
 // script config
 //==============
 
 // https://web.archive.org/web/20210619183531/https://old.reddit.com/r/neopets/comments/o3mq8r/neocola_tokens/
-const AUTOFILL_INPUTS = true // autofills the best token selections
-    const ENABLE_LEGAL_CHEAT = true // adds another index option, granting more neopoints as defined by u/neo_truths
-const BETTER_SELECT_GUI = true // cleans the GUI of the selection page
-
-const COLLECT_DATA = true // collects np earnings and prizes
-    const DISPLAY_DATA = true //adds a simple display for recorded data
-const DISPLAY_TOKEN_COUNT = true // displays # of tokens left on the prize page
-const ESTIMATE_TRANSMOG_ODDS = true // estimates the odds of pulling a transmog given the number of attempts
+const ENABLE_LEGAL_CHEAT = true // adds another index option, granting more neopoints as defined by u/neo_truths
+const ALERT_ON_TRANSMOG = true // gives an alert when you earn a transmog prize to prevent accidentally refreshing past it
 
 
 //==============
@@ -61,41 +55,46 @@ const FLAVOR_NAMES = [
     "Get Rich Quick Juice",
     "Diet Neocash",
     "Bone Hurting Juice",
-    "Person Transmogrification Potion"
+    "Person Transmogrification Potion",
+    "I Know Where You Live"
 ]
-const EMPTY_RESULTS = {
-    "red": {items:{}, np:[], avg_np:null, count: 0},
-    "green": {items:{}, np:[], avg_np:null, count: 0},
-    "blue": {items:{}, np:[], avg_np:null, count: 0},
-    "prob": null,
-    "n_since": 0
-}
 const CURSED_PRIZES = ["Transmogrification Lab Background", "A Beginners Guide to Mixing Transmogrification Potions", "Evil Transmogrification Potions"]
+
+convertOldData()
 
 //selection machine
 if(window.location.href.includes("neocola2.phtml")) {
     addSelectCSS()
-    GM_deleteValue("color")
+    //reset previous run
+    GM_deleteValue("input")
     GM_deleteValue("tokensused")
-    let count = countTokenColors() //counts tokens
-    if(DISPLAY_TOKEN_COUNT) GM_setValue("tokencount", count) //stores token count
-    if(BETTER_SELECT_GUI) compressTokenDisplay(count) //compresses the giant token list
-    modifyInputs() //cleans up and autofills inputs
+    if(!$("#content td.content")[0].innerHTML.includes("Sorry!  You don't have any NeoCola Tokens so you can't use the machine.  :(")) {
+        let count = countTokenColors() //counts tokens
+        GM_setValue("tokencount", count) //stores token count
+        compressTokenDisplay(count) //compresses the giant token list
+        modifyInputs() //cleans up and autofills inputs
+    }
 }
 else if(window.location.href.includes("neocola3.phtml")) {
     addPrizeCSS()
-    let color = GM_getValue("color")
-    if(color) { //needs to know what color to record under
-        //increment tokens used
-        if(DISPLAY_TOKEN_COUNT) {
-            let n = GM_getValue("tokensused", 0)
-            n += 1
-            GM_setValue("tokensused", n)
-        }
-        if(COLLECT_DATA) recordPrize(color) //record prizes earned
+
+    //records data
+    GM_setValue("totalcount", GM_getValue("totalcount", 0) + 1)
+    let input = GM_getValue("input")
+    if(input) { //np stats require a known input combo to record / display
+        //we used a token, increment it
+        let n = GM_getValue("tokensused", 0)
+        n += 1
+        GM_setValue("tokensused", n)
+        recordNP(input) //records np prize
     }
-    if(ESTIMATE_TRANSMOG_ODDS) estimateTransmogOdds() //calculate estimated transmog odds for next roll
-    modifyRewardsPage(color)
+    recordItem() //records item prize
+
+    //displays data
+    if(input) displayTokenNPStats(input)
+    displayItemStats()
+    displayTransmogStats()
+    $("#content > table > tbody > tr > td.content form > input[type=submit]")[0].value = "Run Awaaaaay!!!" //changes the text on the button to be a bit less misleading
 }
 
 
@@ -119,7 +118,6 @@ function countTokenColors() {
             }
         }
     }
-    console.log(`[NCE] Total tokens counted. ` + JSON.stringify(colors))
     return colors
 }
 
@@ -138,7 +136,6 @@ function compressTokenDisplay(count) {
     tokenDisplay.classList.add("token_display")
     for(const color of Object.keys(count)) makeTokenDisplay(tokenDisplay, color, count[color])
     display.appendChild(tokenDisplay)
-    console.log(`[NCE] Token display compressed.`)
 }
 
 //makes one of the three token image and count displays
@@ -151,6 +148,7 @@ function makeTokenDisplay(display, color, count) {
     }
 }
 
+//from the list of mystery brews!
 function getRandomFlavor() {
     return FLAVOR_NAMES[Math.floor(Math.random() * FLAVOR_NAMES.length)]
 }
@@ -158,106 +156,181 @@ function getRandomFlavor() {
 //handles the token inputs
 function modifyInputs() {
     //turns token display into input
-    if(BETTER_SELECT_GUI) {
-        //updates text
-        $("#content > table > tbody > tr > td.content > div[align='center'] > b")[0].innerHTML = "What color will you use?"
+    //updates text
+    $("#content > table > tbody > tr > td.content > div[align='center'] > b")[0].innerHTML = "What color will you use?"
 
-        //button starts inactive
-         $("#content td.content > form input[type=submit]")[0].disabled = true
+    //button starts inactive
+     $("#content td.content > form input[type=submit]")[0].disabled = true
 
-        for(const d of Array.from($(".token_display")[0].children)) d.classList.add("inactive")
+    for(const d of Array.from($(".token_display")[0].children)) d.classList.add("inactive")
 
-        //turns imgs into inputs
-        for(const div of Array.from($(".token_display")[0].children)) {
-            div.style.cursor = "pointer"
-            div.addEventListener("click", ()=>{
-                $(`select[name="token_id"]`).val(div.getAttribute("value"))
-                //select token in form
-                let tokens = Array.from($(".token_display")[0].children)
-                //update active token
-                for(const d of tokens) d.classList.add("inactive")
-                div.classList.remove("inactive")
-                //make submit button active again
-                $("#content td.content > form input[type=submit]")[0].disabled = false
-            })
-        }
-
-        //hides additional space
-        $("#content > table > tbody > tr > td.content > b")[0].remove()
-        $("#content > table > tbody > tr > td.content > form > table > tbody > tr:nth-child(1)")[0].style.visibility = "hidden"
-
-        console.log(`[NCE] Compressed token display linked to form selection.`)
-    }
-
-    //autofills inputs
-    if(AUTOFILL_INPUTS) {
-        //selects neocola flavor - higher index = more np
-        let ncf = $(`select[name="neocola_flavor"]`)[0]
-        //legal cheat adds new option and selects it
-        if(ENABLE_LEGAL_CHEAT) {
-            let ncf = $(`select[name="neocola_flavor"]`)[0]
-            ncf.innerHTML += `<option value="421">${getRandomFlavor()}</option>`
-            ncf.value = 421
-        }
-        //otherwise chooses final index
-        else ncf.value = 7
-
-        //selects button presses - higher index = more np
-        $(`select[name="red_button"]`)[0].value = 3
-
-        console.log(`[NCE] Optimal selection options applied.`)
-    }
-
-    //records what color of token was selected
-    if(DISPLAY_TOKEN_COUNT) {
-        $("#content td.content > form input[type=submit]")[0].addEventListener("click", (event) => {
-            //finds selected element
-            let id = $(`select[name="token_id"] > option:selected`)[0].getAttribute("value")
-            //get color from option value and record it
-            let color = Object.keys(TOKEN_IDS).find((c) => {return TOKEN_IDS[c] == id})
-            GM_setValue("color", color)
-            console.log(`[NCE] Remembering ${color} token color selection.`)
+    //turns imgs into inputs
+    for(const div of Array.from($(".token_display")[0].children)) {
+        div.style.cursor = "pointer"
+        div.addEventListener("click", ()=>{
+            $(`select[name="token_id"]`).val(div.getAttribute("value"))
+            //select token in form
+            let tokens = Array.from($(".token_display")[0].children)
+            //update active token
+            for(const d of tokens) d.classList.add("inactive")
+            div.classList.remove("inactive")
+            //make submit button active again
+            $("#content td.content > form input[type=submit]")[0].disabled = false
         })
     }
+
+    //hides additional space
+    $("#content > table > tbody > tr > td.content > b")[0].remove()
+    $("#content > table > tbody > tr > td.content > form > table > tbody > tr:nth-child(1)")[0].style.visibility = "hidden"
+
+    //autofills inputs
+    //selects neocola flavor - higher index = more np
+    let ncf = $(`select[name="neocola_flavor"]`)[0]
+    //legal cheat adds new option and selects it
+    if(ENABLE_LEGAL_CHEAT) {
+        let ncf = $(`select[name="neocola_flavor"]`)[0]
+        ncf.innerHTML += `<option value="421">${getRandomFlavor()}</option>`
+        ncf.value = 421
+        console.log("[NCE] Additional flavor option added.")
+    }
+    //otherwise chooses final index
+    else ncf.value = 7
+
+    //selects button presses - higher index = more np
+    $(`select[name="red_button"]`)[0].value = 3
+
+    //records what inputs were selected
+    $("#content td.content > form input[type=submit]")[0].addEventListener("click", (event) => {
+        //selected color
+        let id = $(`select[name="token_id"] > option:selected`)[0].getAttribute("value")
+        let color = Object.keys(TOKEN_IDS).find((c) => {return TOKEN_IDS[c] == id})
+        //selected flavor
+        let flavor = $(`select[name="neocola_flavor"] > option:selected`)[0].getAttribute("value")
+        //# of presses
+        let button = $(`select[name="red_button"] > option:selected`)[0].getAttribute("value")
+        GM_setValue("input", {color: color, flavor: flavor, button: button})
+        console.log(`[NCE] Remembering token selections.`)
+    })
 }
 
 //===========
 // prize data
 //===========
 
-//records the np and item earned
-function recordPrize(color) {
-    //collects results from page#content > table > tbody > tr > td.content > div:nth-child(6) > b:nth-child(4)
+//code used from stackoverflow
+//https://stackoverflow.com/questions/1344500/efficient-way-to-insert-a-number-into-a-sorted-array-of-numbers
+function sortedInsert(array, value) {
+    let low = 0, high = array.length
+
+    while (low < high) {
+        let mid = (low + high) >>> 1
+        if (array[mid] < value) low = mid + 1
+        else high = mid
+    }
+    return low
+}
+
+//i changed how data is stored so this makes sure data gets updated
+function convertOldData() {
+    let results = GM_getValue("results")
+    if(results) {
+        console.log("[NCE] Converting old data...")
+        //initializes empty objects
+        let items = {}
+
+        //we assume they used the best flavor and button
+        if(ENABLE_LEGAL_CHEAT) var f = 421
+        else f = 7
+
+        let np = {}
+        np[`{"color":"red","flavor":"${f}","button":"3"}`] = {list:[], avg:null, total:0, count: 0}
+        np[`{"color":"green","flavor":"${f}","button":"3"}`] = {list:[], avg:null, total:0, count: 0}
+        np[`{"color":"blue","flavor":"${f}","button":"3"}`] = {list:[], avg:null, total:0, count: 0}
+
+        let totalcount = 0
+
+        let transmog = {prob: null, n_since: null, list:[]}
+
+        let i = 0
+        for(const color of Object.keys(TOKEN_IDS)) {
+            //items
+            let res = results[color]
+            for(const item of Object.keys(res.items)) {
+                let data = res.items[item]
+                if(!Object.keys(items).includes(item)) items[item] = data //first of item, drag data in
+                else items[item].count += data.count //not first, add count to existing data
+            }
+
+            //np
+            let npkey = Object.keys(np)[i]
+            np[npkey].list = res.np.sort((a, b) => a - b)
+            np[npkey].avg = res.avg_np
+            np[npkey].count = res.count
+            np[npkey].total = res.np.reduce((a, b) => a + b, 0)
+            totalcount += res.count
+
+            i++
+        }
+
+        //transmog
+        transmog.prob = results.prob
+        transmog.n_since = results.n_since
+
+        //saves in new data
+        GM_setValue("item_res", items)
+        GM_setValue("np_res", np)
+        GM_setValue("transmog_res", transmog)
+        GM_setValue("totalcount", totalcount)
+        GM_deleteValue("results")
+        console.log("[NCE] Data converted.")
+    }
+}
+
+function recordNP(input) {
     let np = parseInt($("#content > table > tbody > tr > td.content > div[align='center'] > b:first-of-type")[0].innerHTML.replaceAll(",", ""))
-    let item = {
-        name: $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML,
-        img: $("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src
-    }
+    let np_res = GM_getValue("np_res", {}) //our previous results
+    let npkey = JSON.stringify(input)
+    //inserts in sorted place
+    if(np_res[npkey]) sortedInsert(np_res[npkey].list, np)
+    //initializes if empty
+    else np_res[npkey].list = [np]
 
-    let results = GM_getValue("results", EMPTY_RESULTS)
-    let res = results[color]
+    console.log(np_res[npkey])
 
-    //stores prizes in results
-    res.np.push(np)
-    let item_res = res.items[item.name]
-    if(item_res) { //if we've recorded this item before, increment count
-        res.items[item.name].count += 1
-        console.log(`[NCE] Recorded ${item.name} (total: ${res.items[item.name]})`)
-    }
-    else { //otherwise, add to object
-        res.items[item.name] = {count: 1, img: item.img}
-        console.log(`[NCE] Recorded first ${item.name} (total: 1)`)
-    }
+    //update average np by summing up total earnings and adding our current earnings
+    if(np_res[npkey].avg) np_res[npkey].avg = (np_res[npkey].avg * np_res[npkey].count + np) / (np_res[npkey].count + 1)
+    else np_res[npkey].avg = np
 
-    //updates average np
-    if(res.count > 0) res.avg_np = (res.avg_np*res.count + np) / (res.count + 1)
-    else res.avg_np = np
-    console.log(`[NCE] Calculated average NP earnings. (${res.avg_np} NP)`)
+    console.log(np_res[npkey])
 
-    //increments count
-    res.count += 1
-    GM_setValue("results", results)
-    console.log(`[NCE] Total results recorded: ${res.count}`)
+    if(np_res[npkey].total) np_res[npkey].total += np
+    else np_res[npkey].total = np
+
+    console.log(np_res[npkey])
+
+    if(np_res[npkey].count) np_res[npkey].count += 1
+    else np_res[npkey].count = 1
+
+    console.log(np_res[npkey])
+
+    GM_setValue("np_res", np_res)
+}
+
+function recordItem() {
+    //item prize
+    let itemname = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
+    let item_res = GM_getValue("item_res", {})
+    //recorded before, increase count
+    if(item_res[itemname]) item_res[itemname].count += 1
+    //first of item, add data
+    else item_res[itemname] = {count: 1, img:$("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src}
+    GM_setValue("item_res", item_res)
+
+    //inc. total count
+    GM_setValue("totalcount", GM_getValue("totalcount", 0) + 1)
+
+    //updates transmog odds based on item
+    updateTransmogStats(name)
 }
 
 function calcProb(n) {
@@ -265,98 +338,115 @@ function calcProb(n) {
 }
 
 //calculates estimated probability of rolling a transmog on your next roll
-function estimateTransmogOdds() {
-    let results = GM_getValue("results", EMPTY_RESULTS)
-    let name = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
-
+function updateTransmogStats(name) {
+    let results = GM_getValue("transmog_res", {n_since: 0, prob:0.0, list:[]})
     //increments rolls since
     results.n_since += 1
 
-    //rolled transmog, reset
+    //rolled transmog, record it!
     if(name.includes("Transmogrification")) {
+        let img = $("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src
+        results.list.push({
+            name: name,
+            img: img,
+            n_since: results.n_since,
+            prob: calcProb(results.n_since)
+        })
+        GM_setValue("lasttransmog", img)
+        if(ALERT_ON_TRANSMOG) window.alert("You just won a Transmogrification Potion!\n(Don't forget to take a screenshot!)")
+        //reset the n_since
         results.n_since = 0
-        results.prob = calcProb(1)
-        console.log(`[NCE] Transmogrification potion earned, est. probability reset.`)
+        results.prob = 0.0
+        console.log(`[NCE] Transmogrification potion earned, congrats!`)
     }
     //otherwise, update probability
     else {
-        results.prob = calcProb(results.n_since + 1) //we're calculating the *next* probability so we add
-        console.log(`[NCE] Updated est. probability. (${(results.prob*100.0).toFixed(3)}%)`)
+        results.prob = calcProb(results.n_since)
     }
 
-    GM_setValue("results", results)
+    GM_setValue("transmog_res", results)
 }
 
 //==============
 // prize display
 //==============
 
-//adds some of the recorded stats to the rewards page
-function modifyRewardsPage(color) {
-    //displays tokens used / tokens left
-    if(DISPLAY_TOKEN_COUNT) {
-        let count = GM_getValue("tokencount")?.[color]
-        let used = GM_getValue("tokensused")
-        if(count && used) {
-            let left = count-used
-            let countdiv = document.createElement("div")
-            countdiv.id = "tokensused"
-            countdiv.innerHTML = `
-                <img src="//images.neopets.com/items/sloth_token_${color}.gif" width="80" height="80">
-                <br>
-                <b>Starting Tokens:</b> ${count.toLocaleString("en-US")}
-                <br>
-                <b>Tokens Used:</b> ${used.toLocaleString("en-US")}
-                <br>
-                <b>Tokens Left:</b> ${left.toLocaleString("en-US")}
-            `
-            $("#content td.content")[0].appendChild(countdiv)
-            console.log(`[NCE] Token display added.`)
-        }
-    }
-
-    //adds np / item display
-    if(COLLECT_DATA && DISPLAY_DATA) {
-        const results = GM_getValue("results", EMPTY_RESULTS)
-        const res = results[color]
-
-        //shows # of that item collected
-        let nameelement = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0]
-        let count = res.items[nameelement.innerHTML].count
-        let cdiv = document.createElement("small")
-        cdiv.innerHTML = `<br>(in case you're wondering, you've collected <b>${count}</b> of these!)`
-        nameelement.after(cdiv)
-
-        //shows np stats
-        $("#tokensused")[0].innerHTML += `
+//displays stats for the specific input combo
+function displayTokenNPStats(input) {
+    let color = input.color
+    let count = GM_getValue("tokencount")?.[color]
+    let used = GM_getValue("tokensused")
+    const np_res = GM_getValue("np_res")
+    if(count && used && np_res) { //display only if our data didn't get wiped somehow
+        let res = np_res[JSON.stringify(input)]
+        console.log(res)
+        console.log(JSON.stringify(input))
+        let left = count - used
+        let countdiv = document.createElement("div")
+        countdiv.id = "tokensused"
+        countdiv.innerHTML = `
+            <img src="//images.neopets.com/items/sloth_token_${color}.gif" width="80" height="80">
+            <br>
+            <b>Starting Tokens:</b> ${count.toLocaleString("en-US")}
+            <br>
+            <b>Tokens Used:</b> ${used.toLocaleString("en-US")}
+            <br>
+            <b>Tokens Left:</b> ${left.toLocaleString("en-US")}
             <br><br>
             <u><b>${color.charAt(0).toUpperCase() + color.substr(1)} Token Stats:</b></u>
             <br>
-            <b>Tokens Used:</b> ${res.count}
+            <b>Tokens Used:</b> ${(res.count).toLocaleString("en-US")}
             <br>
-            <b>Avg. NP:</b> ${Math.round(res.avg_np).toLocaleString("en-US")} NP
+            <b>Avg. NP:</b> ${Math.round(res.avg).toLocaleString("en-US")} NP
             <br>
-            <b>Highest NP:</b> ${Math.max(...res.np).toLocaleString("en-US")} NP
+            <b>Highest NP:</b> ${Math.max(res.list.slice(-1)[0]).toLocaleString("en-US")} NP
         `
-        console.log(`[NCE] Prize stat display added.`)
-    }
-
-    if(ESTIMATE_TRANSMOG_ODDS) {
-        const results = GM_getValue("results", EMPTY_RESULTS)
-        let odddiv = document.createElement("div")
-        odddiv.id = "estodds"
-        odddiv.innerHTML = `
-            <img src="//images.neopets.com/items/pot_acara_mutant.gif" width="40" height="40">
-            <br>
-            <b>Tokens Since:</b> ${results.n_since.toLocaleString("en-US")}
-            <br>
-            <b>Est. Odds:</b> ${(results.prob*100.0).toLocaleString("en-US")}%
-        `
-        $("#content td.content")[0].appendChild(odddiv)
+        $("#content td.content")[0].appendChild(countdiv)
         console.log(`[NCE] Token display added.`)
     }
+}
 
-    $("#content > table > tbody > tr > td.content form > input[type=submit]")[0].value = "Go Back!"
+//shows # of item collected
+function displayItemStats() {
+    const item_res = GM_getValue("item_res")
+    if(item_res) { //schizochecking
+        let nameelement = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0]
+        let count = item_res[nameelement.innerHTML].count
+        let cdiv = document.createElement("small")
+        cdiv.innerHTML = `<br>(in case you're wondering, you've collected <b>${count}</b> of these!)`
+        nameelement.after(cdiv)
+    }
+}
+
+function displayTransmogStats() {
+    const results = GM_getValue("transmog_res")
+    let odddiv = document.createElement("div")
+    odddiv.id = "estodds"
+
+    let itemname = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
+    let img = GM_getValue("lasttransmog", "//images.neopets.com/items/pot_acara_mutant.gif")
+
+    //to make sure we display the right numbers since we reset them prior
+    if(itemname.includes("Transmogrification")) {
+        let data = results.list.slice(-1)[0]
+        odddiv.innerHTML = `
+            <img src="${img}" width="40" height="40">
+            <br>
+            <b>Tokens Used:</b> ${data.n_since.toLocaleString("en-US")}
+            <br>
+            <b>Total Odds:</b> ${(data.prob*100.0).toLocaleString("en-US")}%
+        `
+    }
+    else {
+        odddiv.innerHTML = `
+            <img src="${img}" width="40" height="40">
+            <br>
+            <b>Tokens Used:</b> ${results.n_since.toLocaleString("en-US")}
+            <br>
+            <b>Total Odds:</b> ${(results.prob*100.0).toLocaleString("en-US")}%
+        `
+    }
+    $("#content td.content")[0].appendChild(odddiv)
 }
 
 
