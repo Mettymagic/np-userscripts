@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - SDB Inventarium <MettyNeo>
-// @version      0.1
+// @version      0.2
 // @description  Allows you to view all SDB items at once, displaying additional info and allowing for more detailed search and sorts.
 // @author       Metamagic
 // @match        https://www.neopets.com/safetydeposit.phtml*
@@ -58,12 +58,57 @@ const url = document.location.href
 if(url.includes("safetydeposit.phtml")) {
     recordSDBPage()
     removeVanillaSDB()
+    addFQCheck()
 }
 else if(url.includes("quickstock.phtml")) {
     depositQuickStock()
 }
 else if(url.includes("inventory.phtml")) {
     depositInventory()
+}
+
+function addFQCheck() {
+    let row = $("#content > table > tbody > tr > td.content > form > table:nth-child(1) > tbody > tr > td:nth-child(2)")[0]
+    let b = document.createElement("button")
+    b.innerHTML = "Find FQ Items"
+    b.addEventListener("click", (e)=>{e.preventDefault();e.stopPropagation();getFQItems();})
+    row.appendChild(b)
+}
+
+function getFQItems() {
+    let fqlist = GM_getValue("fqlist")
+    let res = {}
+    let sdb = Array.from(Object.values(GM_getValue("sdbdata"))).filter((sdbitem) => {
+        let match = null
+        for(const fae of Object.keys(fqlist)) {
+            if(fqlist[fae].includes(sdbitem.name)) {
+                match = fae
+                break
+            }
+        }
+        if(match) {
+            if(res[match]) res[match].push([sdbitem.name, `(x${sdbitem.count})`])
+            else res[match] = [[sdbitem.name, `(x${sdbitem.count})`]]
+        }
+    })
+    //format list
+    let str = ""
+    for(const fae of Object.keys(res)) {
+        str += "<b><u>"+fae.toUpperCase()+":</b></u>"
+        for(const item of res[fae]) str += `<br>\t<small>- <a>${item[0]}</a> ${item[1]}</small>`
+        str += "<br>"
+    }
+    let display = document.createElement("p")
+    display.innerHTML = str
+    $("#content td.content")[0].insertBefore(display, $("#content > table > tbody > tr > td.content > table")[0])
+    $("#content td.content > p").on("click", "a", function() {
+        if ($(".sswdrop").hasClass("panel_hidden")) $("#sswmenu .imgmenu").click()
+        if ($("#ssw-tabs-1").hasClass("ui-tabs-hide")) $('#ssw-tabs').tabs('select', 0)
+        $("#ssw-criteria").val("exact")
+        $("#searchstr").val(this.innerHTML)
+    })
+    //window.alert(str)
+    console.log(res)
 }
 
 //this is technically illegal btw
