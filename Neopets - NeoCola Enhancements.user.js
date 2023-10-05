@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.5.1
+// @version      1.5.2
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -32,7 +32,7 @@ const ENABLE_LEGAL_CHEAT = true // adds another index option, granting more neop
 const ALERT_ON_TRANSMOG = true // gives an alert when you earn a transmog prize to prevent accidentally refreshing past it
 const BETTER_RESUBMIT = true //uses neocola2 and emulated requests to keep a queue of requests, allowing spammed requests to still be logged
     const START_TIMEOUT = 6000
-    const RESUBMIT_TIMEOUT = 12000
+    const RESUBMIT_TIMEOUT = 60000
 
 //==============
 // main function
@@ -68,22 +68,26 @@ convertOldData()
 
 //selection machine
 if(window.location.href.includes("neocola2.phtml")) {
-    addSelectCSS()
+    var reqQueue = 0
     if(!$("#content td.content")[0].innerHTML.includes("Sorry!  You don't have any NeoCola Tokens so you can't use the machine.  :(")) {
+        addSelectCSS()
         let count = countTokenColors() //counts tokens
         GM_setValue("tokencount", count) //stores token count
         compressTokenDisplay(count) //compresses the giant token list
         modifyInputs() //cleans up and autofills inputs
+        if(BETTER_RESUBMIT) {
+            addPrizeCSS()
+            addQueueDisplay($("#content td.content > form input[type=submit]")[0])
+        }
         //displayStatOverview() //displays stats for all colors and individually
     }
 }
 else if(window.location.href.includes("neocola3.phtml")) {
+    addPrizeCSS()
     modifyPrizePage()
 }
 
 function modifyPrizePage() {
-    addPrizeCSS()
-
     //records data
     GM_setValue("totalcount", GM_getValue("totalcount", 0) + 1)
     let input = GM_getValue("input")
@@ -473,13 +477,13 @@ function addSendButton() {
     console.log("[NCE] Resubmit button added.")
 }
 
-let reqQueue = 0
 function sendRequest(timeout) {
     let input = GM_getValue("input")
     if(input == null) return
 
     console.log("[NCE] Attempting to use token...")
     reqQueue += 1
+    $("#token_queue")[0].innerHTML = reqQueue
 
     $.ajax({
         type: "POST",
@@ -488,6 +492,7 @@ function sendRequest(timeout) {
         timeout: timeout,
         success: function(data) {
             reqQueue -= 1
+            $("#token_queue")[0].innerHTML = reqQueue
             let doc = new DOMParser().parseFromString(data, "text/html")
             if(doc.title != "NeoCola Machine") console.log("[NCE] POST request blocked by stackpath. :(")
             else readResponse(doc)
@@ -495,6 +500,7 @@ function sendRequest(timeout) {
         error: function(xhr, status, error) {
             console.log(status + error)
             reqQueue -= 1
+            $("#token_queue")[0].innerHTML = reqQueue
         }
     }, {token_id:TOKEN_IDS[input.color], neocola_flavor:input.flavor, red_button:input.button}, function(data, status){
         let doc = new DOMParser().parseFromString(data, "text/html")
@@ -513,11 +519,17 @@ function readResponse(doc) {
     else {
         $("#content td.content")[0].innerHTML = doc.querySelector("#content td.content").innerHTML
         modifyPrizePage()
+        addQueueDisplay($("#content td.content button")[0])
     }
 }
 
-
-
+function addQueueDisplay(before) {
+    let d = document.createElement("div")
+    d.id = "token_queue"
+    d.innerHTML = reqQueue
+    before.after(d)
+    console.log("[NCE] Queue display added")
+}
 
 //=========
 // css
@@ -585,6 +597,12 @@ function addPrizeCSS() {
         }
         #content td.content {
             position: relative;
+        }
+        #token_queue {
+            position: absolute;
+            display: inline-block;
+            left: 61%;
+            font-size: 17px;
         }
     `
 }
