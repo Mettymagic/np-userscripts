@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.5
+// @version      1.5.1
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -19,7 +19,9 @@
 // Trans rights are human rights ^^
 // metty says hi
 
-//TODO: add ability to export data, resetting stored stuff and doing something w it, record avg rolls til transmog and # of transmogs
+//TODO: display div instead of absolute, add ability to export data, resetting stored stuff and doing something w it, record avg rolls til transmog and # of transmogs
+//TODO: use neocola2 and emulated requests to keep a queue of requests, allowing spammed requests to still be logged and create special display for it
+        // - item queue of most recent x prizes, color-coded hehe
 
 //==============
 // script config
@@ -28,7 +30,9 @@
 // https://web.archive.org/web/20210619183531/https://old.reddit.com/r/neopets/comments/o3mq8r/neocola_tokens/
 const ENABLE_LEGAL_CHEAT = true // adds another index option, granting more neopoints as defined by u/neo_truths
 const ALERT_ON_TRANSMOG = true // gives an alert when you earn a transmog prize to prevent accidentally refreshing past it
-
+const BETTER_RESUBMIT = true //uses neocola2 and emulated requests to keep a queue of requests, allowing spammed requests to still be logged
+    const START_TIMEOUT = 6000
+    const RESUBMIT_TIMEOUT = 12000
 
 //==============
 // main function
@@ -65,17 +69,19 @@ convertOldData()
 //selection machine
 if(window.location.href.includes("neocola2.phtml")) {
     addSelectCSS()
-    //reset previous run
-    GM_deleteValue("input")
-    GM_deleteValue("tokensused")
     if(!$("#content td.content")[0].innerHTML.includes("Sorry!  You don't have any NeoCola Tokens so you can't use the machine.  :(")) {
         let count = countTokenColors() //counts tokens
         GM_setValue("tokencount", count) //stores token count
         compressTokenDisplay(count) //compresses the giant token list
         modifyInputs() //cleans up and autofills inputs
+        //displayStatOverview() //displays stats for all colors and individually
     }
 }
 else if(window.location.href.includes("neocola3.phtml")) {
+    modifyPrizePage()
+}
+
+function modifyPrizePage() {
     addPrizeCSS()
 
     //records data
@@ -94,7 +100,9 @@ else if(window.location.href.includes("neocola3.phtml")) {
     if(input) displayTokenNPStats(input)
     displayItemStats()
     displayTransmogStats()
-    $("#content > table > tbody > tr > td.content form > input[type=submit]")[0].value = "Run Awaaaaay!!!" //changes the text on the button to be a bit less misleading
+    $("#content td.content form > input[type=submit]")[0].value = "Run Awaaaaay!!!" //changes the text on the button to be a bit less misleading
+    $("#content td.content form")[0].setAttribute("action", "neocola2.phtml") //brings to neocola2 instead of neocola1
+    addSendButton()
 }
 
 
@@ -200,16 +208,27 @@ function modifyInputs() {
     $(`select[name="red_button"]`)[0].value = 3
 
     //records what inputs were selected
+    let submitted = false
     $("#content td.content > form input[type=submit]")[0].addEventListener("click", (event) => {
-        //selected color
-        let id = $(`select[name="token_id"] > option:selected`)[0].getAttribute("value")
-        let color = Object.keys(TOKEN_IDS).find((c) => {return TOKEN_IDS[c] == id})
-        //selected flavor
-        let flavor = $(`select[name="neocola_flavor"] > option:selected`)[0].getAttribute("value")
-        //# of presses
-        let button = $(`select[name="red_button"] > option:selected`)[0].getAttribute("value")
-        GM_setValue("input", {color: color, flavor: flavor, button: button})
-        console.log(`[NCE] Remembering token selections.`)
+        //clears last run's use count
+        if(!submitted) {
+            GM_deleteValue("tokensused")
+            //selected color
+            let id = $(`select[name="token_id"] > option:selected`)[0].getAttribute("value")
+            let color = Object.keys(TOKEN_IDS).find((c) => {return TOKEN_IDS[c] == id})
+            //selected flavor
+            let flavor = $(`select[name="neocola_flavor"] > option:selected`)[0].getAttribute("value")
+            //# of presses
+            let button = $(`select[name="red_button"] > option:selected`)[0].getAttribute("value")
+            GM_setValue("input", {color: color, flavor: flavor, button: button})
+            console.log(`[NCE] Remembered token input selections.`)
+            if(BETTER_RESUBMIT) console.log("[NCE] Using better token submit system.")
+        }
+        if(BETTER_RESUBMIT) {
+            sendRequest(START_TIMEOUT)
+            event.preventDefault()
+            event.stopPropagation()
+        }
     })
 }
 
@@ -295,42 +314,34 @@ function recordNP(input) {
     //initializes if empty
     else np_res[npkey].list = [np]
 
-    console.log(np_res[npkey])
-
     //update average np by summing up total earnings and adding our current earnings
     if(np_res[npkey].avg) np_res[npkey].avg = (np_res[npkey].avg * np_res[npkey].count + np) / (np_res[npkey].count + 1)
     else np_res[npkey].avg = np
 
-    console.log(np_res[npkey])
-
     if(np_res[npkey].total) np_res[npkey].total += np
     else np_res[npkey].total = np
 
-    console.log(np_res[npkey])
-
     if(np_res[npkey].count) np_res[npkey].count += 1
     else np_res[npkey].count = 1
-
-    console.log(np_res[npkey])
 
     GM_setValue("np_res", np_res)
 }
 
 function recordItem() {
     //item prize
-    let itemname = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
+    let itemname = $("#content td.content > div[align='center'] > b:last-of-type")[0].innerHTML
     let item_res = GM_getValue("item_res", {})
     //recorded before, increase count
     if(item_res[itemname]) item_res[itemname].count += 1
     //first of item, add data
-    else item_res[itemname] = {count: 1, img:$("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src}
+    else item_res[itemname] = {count: 1, img: $("#content td.content > div[align='center'] > img:last-of-type")[0].src}
     GM_setValue("item_res", item_res)
 
     //inc. total count
     GM_setValue("totalcount", GM_getValue("totalcount", 0) + 1)
 
     //updates transmog odds based on item
-    updateTransmogStats(name)
+    updateTransmogStats(itemname)
 }
 
 function calcProb(n) {
@@ -345,7 +356,8 @@ function updateTransmogStats(name) {
 
     //rolled transmog, record it!
     if(name.includes("Transmogrification")) {
-        let img = $("#content > table > tbody > tr > td.content > div[align='center'] > img:last-of-type")[0].src
+        console.log(`[NCE] Transmogrification potion earned, congrats!`)
+        let img = $("#content td.content > div[align='center'] > img:last-of-type")[0].src
         results.list.push({
             name: name,
             img: img,
@@ -357,7 +369,6 @@ function updateTransmogStats(name) {
         //reset the n_since
         results.n_since = 0
         results.prob = 0.0
-        console.log(`[NCE] Transmogrification potion earned, congrats!`)
     }
     //otherwise, update probability
     else {
@@ -379,8 +390,6 @@ function displayTokenNPStats(input) {
     const np_res = GM_getValue("np_res")
     if(count && used && np_res) { //display only if our data didn't get wiped somehow
         let res = np_res[JSON.stringify(input)]
-        console.log(res)
-        console.log(JSON.stringify(input))
         let left = count - used
         let countdiv = document.createElement("div")
         countdiv.id = "tokensused"
@@ -410,7 +419,7 @@ function displayTokenNPStats(input) {
 function displayItemStats() {
     const item_res = GM_getValue("item_res")
     if(item_res) { //schizochecking
-        let nameelement = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0]
+        let nameelement = $("#content td.content > div[align='center'] > b:last-of-type")[0]
         let count = item_res[nameelement.innerHTML].count
         let cdiv = document.createElement("small")
         cdiv.innerHTML = `<br>(in case you're wondering, you've collected <b>${count}</b> of these!)`
@@ -423,7 +432,7 @@ function displayTransmogStats() {
     let odddiv = document.createElement("div")
     odddiv.id = "estodds"
 
-    let itemname = $("#content > table > tbody > tr > td.content > div[align='center'] > b:last-of-type")[0].innerHTML
+    let itemname = $("#content td.content > div[align='center'] > b:last-of-type")[0].innerHTML
     let img = GM_getValue("lasttransmog", "//images.neopets.com/items/pot_acara_mutant.gif")
 
     //to make sure we display the right numbers since we reset them prior
@@ -448,6 +457,66 @@ function displayTransmogStats() {
     }
     $("#content td.content")[0].appendChild(odddiv)
 }
+
+
+//===================
+// token use overhaul
+//===================
+
+function addSendButton() {
+    let button = document.createElement("button")
+    button.innerHTML = "Use Another Token!"
+    button.addEventListener("click", () => {sendRequest(RESUBMIT_TIMEOUT)})
+    $("#content td.content > div:first-of-type")[0].insertBefore(button, $(`#content td.content > div:first-of-type > form`)[0])
+    button.after(document.createElement("br"), document.createElement("br"))
+    button.focus()
+    console.log("[NCE] Resubmit button added.")
+}
+
+let reqQueue = 0
+function sendRequest(timeout) {
+    let input = GM_getValue("input")
+    if(input == null) return
+
+    console.log("[NCE] Attempting to use token...")
+    reqQueue += 1
+
+    $.ajax({
+        type: "POST",
+        url: "/moon/neocola3.phtml",
+        data: {token_id:TOKEN_IDS[input.color], neocola_flavor:input.flavor, red_button:input.button},
+        timeout: timeout,
+        success: function(data) {
+            reqQueue -= 1
+            let doc = new DOMParser().parseFromString(data, "text/html")
+            if(doc.title != "NeoCola Machine") console.log("[NCE] POST request blocked by stackpath. :(")
+            else readResponse(doc)
+        },
+        error: function(xhr, status, error) {
+            console.log(status + error)
+            reqQueue -= 1
+        }
+    }, {token_id:TOKEN_IDS[input.color], neocola_flavor:input.flavor, red_button:input.button}, function(data, status){
+        let doc = new DOMParser().parseFromString(data, "text/html")
+        //sometimes stackpath blocks the page :/
+        if(doc.title != "NeoCola Machine") console.log("[NCE] POST request blocked by stackpath. :(")
+    })
+}
+
+function readResponse(doc) {
+    console.log("[NCE] Response received, recording and updating display.")
+    console.log(doc)
+    //on error
+    if(doc.querySelector(".errorMessage")) {
+        console.log(doc.querySelector(".errorMessage").innerHTML)
+    }
+    else {
+        $("#content td.content")[0].innerHTML = doc.querySelector("#content td.content").innerHTML
+        modifyPrizePage()
+    }
+}
+
+
 
 
 //=========
