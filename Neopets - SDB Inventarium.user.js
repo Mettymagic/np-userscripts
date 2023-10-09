@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - SDB Inventarium <MettyNeo>
-// @version      0.2
+// @version      0.3
 // @description  Allows you to view all SDB items at once, displaying additional info and allowing for more detailed search and sorts.
 // @author       Metamagic
 // @match        https://www.neopets.com/safetydeposit.phtml*
@@ -70,45 +70,27 @@ else if(url.includes("inventory.phtml")) {
 function addFQCheck() {
     let row = $("#content > table > tbody > tr > td.content > form > table:nth-child(1) > tbody > tr > td:nth-child(2)")[0]
     let b = document.createElement("button")
-    b.innerHTML = "Find FQ Items"
+    b.innerHTML = "Find r102-r179 Items"
     b.addEventListener("click", (e)=>{e.preventDefault();e.stopPropagation();getFQItems();})
     row.appendChild(b)
 }
 
 function getFQItems() {
-    let fqlist = GM_getValue("fqlist")
-    let res = {}
     let sdb = Array.from(Object.values(GM_getValue("sdbdata"))).filter((sdbitem) => {
-        let match = null
-        for(const fae of Object.keys(fqlist)) {
-            if(fqlist[fae].includes(sdbitem.name)) {
-                match = fae
-                break
-            }
-        }
-        if(match) {
-            if(res[match]) res[match].push([sdbitem.name, `(x${sdbitem.count})`])
-            else res[match] = [[sdbitem.name, `(x${sdbitem.count})`]]
-        }
+        return sdbitem.rarity > 101 && sdbitem.rarity < 180
+    }).sort((a, b) => {
+        return b.count - a.count
     })
+    let count = sdb.map((a)=>{return a.count}).reduce((a, b) => {return a + b}, 0)
     //format list
-    let str = ""
-    for(const fae of Object.keys(res)) {
-        str += "<b><u>"+fae.toUpperCase()+":</b></u>"
-        for(const item of res[fae]) str += `<br>\t<small>- <a>${item[0]}</a> ${item[1]}</small>`
-        str += "<br>"
+    let str = `<b><u>Results:</u> (Total: ${count})</b>`
+    for(const item of sdb) {
+        str += `<br>\t- <a href="/safetydeposit.phtml?obj_name=${encodeURIComponent(item.name)}&category=0">${item.name}</a> <small>x ${item.count}</small>`
     }
     let display = document.createElement("p")
     display.innerHTML = str
     $("#content td.content")[0].insertBefore(display, $("#content > table > tbody > tr > td.content > table")[0])
-    $("#content td.content > p").on("click", "a", function() {
-        if ($(".sswdrop").hasClass("panel_hidden")) $("#sswmenu .imgmenu").click()
-        if ($("#ssw-tabs-1").hasClass("ui-tabs-hide")) $('#ssw-tabs').tabs('select', 0)
-        $("#ssw-criteria").val("exact")
-        $("#searchstr").val(this.innerHTML)
-    })
-    //window.alert(str)
-    console.log(res)
+    console.log("Items displayed.")
 }
 
 //this is technically illegal btw
