@@ -4,6 +4,9 @@
 
 <p>Sometimes small things on Neopets annoy me so I write userscripts to make things a bit easier and share them to the world to hopefully make everyone's life a bit easier.</p>
 
+___
+
+
 ### Page Overhauls:
 
 <small>
@@ -48,6 +51,8 @@
 		- <span style="color:grey"><u>NOTE:</u> Certain prompts, eg gifting users, may not auto-refresh at the right time. This will be fixed in a later version.</span>
 	* Remembers your option selection for each item, making repeated uses much quicker!
 	
+___
+
 
 ### QoL Scripts:
 * ☠️ [Lever of Doom Shame Tracker](Neopets%20-%20LoD%20Shame%20Tracker.user.js)
@@ -77,6 +82,8 @@
 		
 * 🖼 [Mystery Pic Helper](Neopets%20-%20Mystery%20Pic%20Helper.user.js)
 	- Adds quicklinks to Jellyneo Image Emporium pages to help users determine the Mystery Pic
+
+___
 
 ### WIP Userscripts:
 
