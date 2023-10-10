@@ -4,6 +4,9 @@
 
 <p>Sometimes small things on Neopets annoy me so I write userscripts to make things a bit easier and share them to the world to hopefully make everyone's life a bit easier.</p>
 
+<i><small>\* Script unofficially approved on /r/neopets! <span style="color:grey">(Very few scripts are approved because their userscript approval process is an absolute mess)</span></small></i>
+</small>
+
 ___
 
 
@@ -63,7 +66,7 @@ ___
 	* Adds a button on all pages that deposits all items currently in your inventory into your Safety Deposit Box
 		- Donates items using the quick stock page in batches of 70
 		
-* ⭐ [Home Page Redirect](Neopets%20-%20Home%20Page%20Redirect.user.js)
+* ⭐ [Home Page Redirect](Neopets%20-%20Home%20Page%20Redirect.user.js) \*
 	- Simply redirects from the new homepage to the actual game site's home page.
 	
 * 🏳️‍🌈 [Trans Affirming Neopets](Neopets%20-%20Trans%20Affirming%20Neopets.user.js) <i>[(+ Userscript Compat)](Neopets%20-%20Trans%20Affirming%20Neopets%20(Compat).user.js)</i>
@@ -73,7 +76,7 @@ ___
 	- <u>Note:</u> Requires the user to add pairs of words in the script itself!
 	- <u>Note:</u> Does not currently replace instances of words added to the page after loading, eg. on pop-up prompts!
 	
-* 🍗 [NeoFoodClub +](Neopets%20-%20NeoFoodClub%2B.user.js)
+* 🍗 [NeoFoodClub +](Neopets%20-%20NeoFoodClub%2B.user.js) \*
 	- Adds various small improvements to the fansite [NeoFood.Club](https://neofood.club/)
 		+ Automatically applies max bet amount
 		+ Keeps track of bets that have been placed to prevent double-betting
@@ -99,6 +102,3 @@ ___
 	- <span style="color:grey">[UNIMPLEMENTED] Items can be sorted by rarity, est. price, market price, quantity, and more!</span>
 		+ Currently allows users to sort for r102-r179 items for Faerie Festival, albeit with a primitive display
 	- <span style="color:grey">[UNIMPLEMENTED] User can save sorting options and quickly apply saved search conditions!
-
-<i><small>\* Script unofficially approved on /r/neopets! <span style="color:grey">(Very few scripts are approved because their userscript approval process is an absolute mess)</span></small></i>
-</small>
