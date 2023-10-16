@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.5.2
+// @version      1.5.3
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -32,7 +32,7 @@ const ENABLE_LEGAL_CHEAT = true // adds another index option, granting more neop
 const ALERT_ON_TRANSMOG = true // gives an alert when you earn a transmog prize to prevent accidentally refreshing past it
 const BETTER_RESUBMIT = true //uses neocola2 and emulated requests to keep a queue of requests, allowing spammed requests to still be logged
     const START_TIMEOUT = 6000
-    const RESUBMIT_TIMEOUT = 60000
+    const RESUBMIT_TIMEOUT = 16000
 
 //==============
 // main function
@@ -242,15 +242,15 @@ function modifyInputs() {
 
 //code used from stackoverflow
 //https://stackoverflow.com/questions/1344500/efficient-way-to-insert-a-number-into-a-sorted-array-of-numbers
-function sortedInsert(array, value) {
-    let low = 0, high = array.length
-
-    while (low < high) {
-        let mid = (low + high) >>> 1
-        if (array[mid] < value) low = mid + 1
-        else high = mid
+//god damn it this is broken
+function sortedInsert(arr, val) {
+    arr.push(val);
+    for (let i = arr.length - 1; i > 0 && arr[i] < arr[i-1]; i--) {
+        let tmp = arr[i]
+        arr[i] = arr[i-1]
+        arr[i-1] = tmp
     }
-    return low
+    return arr
 }
 
 //i changed how data is stored so this makes sure data gets updated
