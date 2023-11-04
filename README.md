@@ -5,6 +5,7 @@
 <p>Sometimes small things on Neopets annoy me so I write userscripts to make things a bit easier and share them to the world to hopefully make everyone's life a bit easier.</p>
 
 <i><small>\* Script unofficially approved on /r/neopets! <span style="color:grey">(Very few scripts are approved because their userscript approval process is an absolute mess)</span></small></i>
+<i><small>\* NOTE: /r/neopets script approval has been revoked due to a false ban I'm currently under in the community. For now my posts are deleted there and I'm unsure when or if they'll be back. Sorry for any inconvenience!</span></small></i>
 </small>
 
 ___
