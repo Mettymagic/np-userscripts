@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.3
+// @version      1.4
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -76,6 +76,7 @@ const PIRATE_IDS = Object.fromEntries(Object.entries(PIRATE_NAMES).map(a => a.re
 
 //applies changes to neofood.club
 if(window.location.href.includes("neofood.club")) {
+    if(GM_getValue("toprocess") == null) GM_setValue("toprocess", 0)
     addCSS()
     waitForBetTable()
 }
@@ -176,9 +177,27 @@ function handleNeoFoodMods() {
     updateRound() //updates stored round #, which resets some things
     updateSetStatus() //updates set status if shit changes
     handleBetButtons() //updates place bet buttons
+    addBetAllButton() //adds a button to place all bets at once
     updateMaxBet() //updates the max bet value in the header
     applyMaxBetValue() //presses the set all max bet button
     if(ADD_NEO_LINKS) addNeoLinks($("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]) //adds quick links
+}
+
+function addBetAllButton() {
+    $("#root > div > div.css-1m39luo > div.css-1sssh7k > div")[0].innerHTML += `
+        <div class="css-cpjzy9" id="quicklink-cont" style="margin-right: 20px; color: white;">
+            <button type="button" class="chakra-button css-178homt css-1a5epff" style="user-select: auto;" onclick="clickAllBets()">
+                Place all bets
+            </button>
+        </div>`
+    console.log("added")
+}
+
+function clickAllBets() {
+    for(let row of Array.from(getBetTable().children[1].getElementsByTagName("tr"))) {
+        let button = row.children[13].children[0]
+        button.click()
+    }
 }
 
 function updateRound() {
@@ -205,7 +224,7 @@ function updateRound() {
         GM_deleteValue("tabinfo")
         GM_deleteValue("betstatus")
         GM_deleteValue("placedbets")
-        GM_deleteValue("toprocess")
+        GM_setValue("toprocess", 0)
         console.log("[NFC+] "+ resetMsg)
     }
 }
@@ -312,7 +331,7 @@ function addNeoLinks(cont) {
     button1.classList.add("chakra-button", "css-178homt", "css-1a5epff")
     let button2 = button1.cloneNode()
     button1.innerHTML = "Current Bets"
-    button1.addEventListener("click", () => { window.open('https://www.neopets.com/pirates/foodclub.phtml?type=current_bets') })
+    button1.addEventListener("click", () => { window.open('https://www.neopets.com/pirates/foodclub.phtml?type=current_bets'); GM_setValue("toprocess", 0) })
     button2.innerHTML = "Collect Winnings"
     button2.addEventListener("click", () => { window.open('https://www.neopets.com/pirates/foodclub.phtml?type=collect') })
 
@@ -393,7 +412,6 @@ function updateButtonStatus() {
         let button = getBetRow(betNum).children[13].children[0]
         let statusMsg = betStatus[betNum]
         button.firstChild.data = statusMsg
-        button.disabled = true
         if(statusMsg == "Already placed!" || statusMsg == "Invalid bet!") {
             button.classList.add("css-ejxey")
             button.classList.remove("css-1t3af2r")
@@ -401,6 +419,7 @@ function updateButtonStatus() {
         }
         if(statusMsg == "Bet placed!") {
             button.classList.add("css-1a4vxth")
+            button.disabled = true
         }
     }
 }
