@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.4
+// @version      1.41
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -177,7 +177,7 @@ function handleNeoFoodMods() {
     updateRound() //updates stored round #, which resets some things
     updateSetStatus() //updates set status if shit changes
     handleBetButtons() //updates place bet buttons
-    addBetAllButton() //adds a button to place all bets at once
+    //addBetAllButton() //adds a button to place all bets at once
     updateMaxBet() //updates the max bet value in the header
     applyMaxBetValue() //presses the set all max bet button
     if(ADD_NEO_LINKS) addNeoLinks($("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]) //adds quick links
@@ -186,7 +186,7 @@ function handleNeoFoodMods() {
 function addBetAllButton() {
     $("#root > div > div.css-1m39luo > div.css-1sssh7k > div")[0].innerHTML += `
         <div class="css-cpjzy9" id="quicklink-cont" style="margin-right: 20px; color: white;">
-            <button type="button" class="chakra-button css-178homt css-1a5epff" style="user-select: auto;" onclick="clickAllBets()">
+            <button type="button" class="chakra-button css-178homt css-1a5epff" style="user-select: auto;" >
                 Place all bets
             </button>
         </div>`
