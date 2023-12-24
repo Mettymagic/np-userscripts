@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.5
+// @version      2.6
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -34,6 +34,7 @@ const LOOSE_OBELISK_RESTRICTIONS = true //allows the script to be used in obelis
 //==========
 // constants
 //==========
+
 let firstLoad = true
 
 //button colors in rgb
@@ -157,18 +158,23 @@ function addBar() {
     let hud = $("#arenacontainer #playground #gQ_scenegraph #hud")[0]
     const hpObs = new MutationObserver(mutations => {
         for(const mutation of mutations) {
+            //battle ends when someone reaches 0 hp
             if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
                 let obelisktrack = GM_getValue("obelisktrack", {count:0, points:0, date:-1})
                 //resets tracked loot on new day
                 if(getDate() != GM_getValue("bdloottrack", {items:0, np:0, date:null}).date) GM_deleteValue("bdloottrack")
                 //resets obelisk data after 4 days (aka the duration of the war)
                 if(new Date().valueOf() - obelisktrack.date > 1000*60*60*24*4) GM_deleteValue("obelisktrack")
+                //skips final animation
+                if(!limitObelisk() && ANIMATION_DELAY >= 0) skipAnimation()
                 //tracks obelisk contribution
                 if(isObelisk()) {
-                    //player hp above 0, win
-                    if(hud.children[5].innerHTML > 0) obeliskContribution = difficulty * 0.5
+                    //both hp = 0, tie
+                    if(hud.children[5].innerHTML == 0 && hud.children[6].innerHTML == 0) obeliskContribution = difficulty * 0.5
+                    //enemy hp 0, player win
+                    if(hud.children[6].innerHTML == 0) obeliskContribution = difficulty * 1.0
                     //player hp is 0, either lose or draw
-                    else obeliskContribution = difficulty * 0.2
+                    else if(hud.children[5].innerHTML == 0) obeliskContribution = difficulty * 0.2
 
                     obelisktrack.count += 1
                     obelisktrack.points += obeliskContribution
@@ -176,8 +182,6 @@ function addBar() {
                     GM_setValue("obelisktrack", obelisktrack)
 
                 }
-                //skips final animation
-                if(!limitObelisk() && ANIMATION_DELAY >= 0) skipAnimation()
                 hpObs.disconnect()
                 break
             }
@@ -1370,10 +1374,7 @@ function clone(data) {
 }
 
 function getDate() {
-    let date = new Date()
-    date.setHours(date.getHours()-7) //converts time to NST
-    let str = date.toLocaleString("en-US", {timeZone: "UTC"}).slice(0, 10).replace(",","")
-    return str
+    return new Date().toLocaleString("en-US", {timeZone: "PST"}).slice(0, 10).replace(",","")
 }
 
 function getItemURL(node, ability=false) {
