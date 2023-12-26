@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.41
+// @version      1.42
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -177,27 +177,42 @@ function handleNeoFoodMods() {
     updateRound() //updates stored round #, which resets some things
     updateSetStatus() //updates set status if shit changes
     handleBetButtons() //updates place bet buttons
-    //addBetAllButton() //adds a button to place all bets at once
+    addBetAllButton() //adds a button to place all bets at once
     updateMaxBet() //updates the max bet value in the header
     applyMaxBetValue() //presses the set all max bet button
     if(ADD_NEO_LINKS) addNeoLinks($("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]) //adds quick links
 }
 
-function addBetAllButton() {
-    $("#root > div > div.css-1m39luo > div.css-1sssh7k > div")[0].innerHTML += `
-        <div class="css-cpjzy9" id="quicklink-cont" style="margin-right: 20px; color: white;">
-            <button type="button" class="chakra-button css-178homt css-1a5epff" style="user-select: auto;" >
-                Place all bets
-            </button>
-        </div>`
-    console.log("added")
-}
-
 function clickAllBets() {
     for(let row of Array.from(getBetTable().children[1].getElementsByTagName("tr"))) {
-        let button = row.children[13].children[0]
-        button.click()
+        setTimeout(() => {
+            let button = row.children[13].children[0]
+            button.click()
+        }, 500)
     }
+}
+
+function addBetAllButton() {
+    let div = document.createElement("div")
+    div.classList.add("css-cpjzy9")
+    div.style.marginRight = "20px"
+    div.color = "white"
+    let button = document.createElement("button")
+    button.type = "button"
+    button.classList.add("chakra-button", "css-178homt", "css-1a5epff")
+    button.style.userSelect = "auto"
+    button.addEventListener("click", clickAllBets)
+    button.innerHTML = "Place all bets"
+    let reminder = document.createElement("div")
+    reminder.classList.add("css-1sgc0qu")
+    reminder.style.fontSize = "9pt"
+    reminder.style.marginTop = "2px"
+    reminder.innerHTML = "(enable pop-ups)"
+
+
+    div.appendChild(button)
+    div.appendChild(reminder)
+    $("#root > div > div.css-1m39luo > div.css-1sssh7k > div")[0].appendChild(div)
 }
 
 function updateRound() {
