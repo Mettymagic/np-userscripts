@@ -4,10 +4,6 @@
 
 <p>Sometimes small things on Neopets annoy me so I write userscripts to make things a bit easier and share them to the world to hopefully make everyone's life a bit easier.</p>
 
-<i><small>\* Script unofficially approved on /r/neopets! <span style="color:grey">(Very few scripts are approved because their userscript approval process is an absolute mess)</span></small></i>
-<i><small>\* NOTE: /r/neopets script approval has been revoked due to a false ban I'm currently under in the community. For now my posts are deleted there and I'm unsure when or if they'll be back. Sorry for any inconvenience!</span></small></i>
-</small>
-
 ___
 
 
@@ -15,7 +11,7 @@ ___
 
 <small>
 
-* ⚔️ [Battledome Set Selector / Better Battledome ](Neopets%20-%20Battledome%20Set%20Selector.user.js) \*
+* ⚔️ [Battledome Set Selector / Better Battledome ](Neopets%20-%20Battledome%20Set%20Selector.user.js)
 	* Adds the ability to save and select up to 5 BD weapon/ability selections with the click of a button!
 	* Sets can be set to automatically apply based on the current turn!
 	* Disables the BD animations, making fights much more seamless!
@@ -24,7 +20,7 @@ ___
 	* Tracks Obelisk contribution, including battles played and points earned for your team!
 	* <u>Note:</u> Script automatically disables during 2P battles and after your first 10 Obelisk battles!
 
-* 🎣 [Active Pet Switch / Fishing Vortex Plus](Neopets%20-%20Active%20Pet%20Switch.user.js) \*
+* 🎣 [Active Pet Switch / Fishing Vortex Plus](Neopets%20-%20Active%20Pet%20Switch.user.js)
 	* Allows you to switch your active pet from anywhere with the press of a button!
 	* Adds additional features for the Fishing Vortex such as level display and time since last fished!
 		- Now you can fish with <i>all</i> of your pets!
@@ -67,7 +63,7 @@ ___
 	* Adds a button on all pages that deposits all items currently in your inventory into your Safety Deposit Box
 		- Donates items using the quick stock page in batches of 70
 		
-* ⭐ [Home Page Redirect](Neopets%20-%20Home%20Page%20Redirect.user.js) \*
+* ⭐ [Home Page Redirect](Neopets%20-%20Home%20Page%20Redirect.user.js)
 	- Simply redirects from the new homepage to the actual game site's home page.
 	
 * 🏳️‍🌈 [Trans Affirming Neopets](Neopets%20-%20Trans%20Affirming%20Neopets.user.js) <i>[(+ Userscript Compat)](Neopets%20-%20Trans%20Affirming%20Neopets%20(Compat).user.js)</i>
@@ -77,7 +73,7 @@ ___
 	- <u>Note:</u> Requires the user to add pairs of words in the script itself!
 	- <u>Note:</u> Does not currently replace instances of words added to the page after loading, eg. on pop-up prompts!
 	
-* 🍗 [NeoFoodClub +](Neopets%20-%20NeoFoodClub%2B.user.js) \*
+* 🍗 [NeoFoodClub +](Neopets%20-%20NeoFoodClub%2B.user.js)
 	- Adds various small improvements to the fansite [NeoFood.Club](https://neofood.club/)
 		+ Automatically applies max bet amount
 		+ Keeps track of bets that have been placed to prevent double-betting
@@ -86,6 +82,10 @@ ___
 		
 * 🖼 [Mystery Pic Helper](Neopets%20-%20Mystery%20Pic%20Helper.user.js)
 	- Adds quicklinks to Jellyneo Image Emporium pages to help users determine the Mystery Pic
+	
+* 🧩 [Daily Puzzle Solver](Neopets%20-%20Daily%20Puzzle%20Solver.user.js)
+	- Automatically grabs and selects the correct daily puzzle answer from TheDailyNeopets
+	- Permission to use pages was obtained and credit included. Thanks TDN team!
 
 ___
 
@@ -94,7 +94,7 @@ ___
 * 📡 [Direct Link Display](Neopets%20-%20Direct%20Link%20Display.user.js)
 	- Adds a visual display to daily direct links
 	- Currently supports Qasalan Expellibox and Coconut Shy
-	- Wheel support planned
+	- ~~Wheel support planned~~ Neopets killed this, unfortunately...
 
 * 🗃 [SDB Inventarium](Neopets%20-%20SDB%20Inventarium.user.js)
 	- Currently only tracks items in SDB and items going in/out of SDB
