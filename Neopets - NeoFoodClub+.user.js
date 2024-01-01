@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.42
+// @version      1.5
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -32,6 +32,27 @@ const AUTOMAXBET = true //automatically fills max bet value
 const AUTOCOLLECTMAXBET = true //grabs the max bet from the neo food club page for convenience
 const AUTOCOLLECT_TIMEOUT = 120 //autocollected data times out after this many minutes (default: 2hr)
 const ADD_NEO_LINKS = true //adds some quick links to neopets food club pages for convenience
+
+//===============
+// React classes
+//===============
+
+//selectors
+const NFC_BET_TABLE = ".css-1l4tbns table.chakra-table.css-t1gveh"
+const NFC_MAX_BET_INPUT = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k > input"
+const NFC_ROUND_NUMBER = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
+const NFC_BET_BAR = "#root > div > div.css-1m39luo"
+const NFC_NO_BET_BAR = "#root > div > div.css-1073utt"
+
+//classes
+const BUTTON_CONTAINER = "css-cpjzy9"
+const BUTTON_CONTAINER_2 = "css-8g8ihq"
+const NFC_BUTTON = "css-1873r7a"
+const NFC_BUTTON_NOBETS = "css-igc3ti"
+const GREEN_BET_BUTTON = "css-13ncfhw"
+const GRAY_BET_BUTTON = "css-n1yvyo"
+const RED_BET_BUTTON = "css-1j410sj"
+
 
 //================
 // food club dicts
@@ -144,7 +165,7 @@ function waitForBetTable() {
     }
     //the table we want doesn't exist, wait for it to exist
     else {
-        if(ADD_NEO_LINKS) addNeoLinks($(".css-1073utt")[0])
+        if(ADD_NEO_LINKS) addNeoLinks($(NFC_NO_BET_BAR)[0])
         watchForBetTable()
     }
 }
@@ -164,7 +185,7 @@ function watchForBetTable() {
                 }
                 //otherwise, check if we need to add the bet links
                 else if($("#quicklink-cont").length == 0 && ADD_NEO_LINKS) { //if bet links don't exist
-                    addNeoLinks($(".css-1073utt")[0])
+                    addNeoLinks($(NFC_BET_BAR)[0])
                 }
             }
         }
@@ -180,7 +201,7 @@ function handleNeoFoodMods() {
     addBetAllButton() //adds a button to place all bets at once
     updateMaxBet() //updates the max bet value in the header
     applyMaxBetValue() //presses the set all max bet button
-    if(ADD_NEO_LINKS) addNeoLinks($("#root > div > div.css-1m39luo, #root > div > div.css-18xdfye")[0]) //adds quick links
+    if(ADD_NEO_LINKS) addNeoLinks($(NFC_BET_BAR)[0]) //adds quick links
 }
 
 function clickAllBets() {
@@ -194,17 +215,17 @@ function clickAllBets() {
 
 function addBetAllButton() {
     let div = document.createElement("div")
-    div.classList.add("css-cpjzy9")
+    div.classList.add(BUTTON_CONTAINER)
     div.style.marginRight = "20px"
     div.color = "white"
     let button = document.createElement("button")
     button.type = "button"
-    button.classList.add("chakra-button", "css-178homt", "css-1a5epff")
+    button.classList.add("chakra-button", NFC_BUTTON, NFC_BUTTON_NOBETS)
     button.style.userSelect = "auto"
     button.addEventListener("click", clickAllBets)
     button.innerHTML = "Place all bets"
     let reminder = document.createElement("div")
-    reminder.classList.add("css-1sgc0qu")
+    reminder.classList.add(BUTTON_CONTAINER_2)
     reminder.style.fontSize = "9pt"
     reminder.style.marginTop = "2px"
     reminder.innerHTML = "(enable pop-ups)"
@@ -220,7 +241,7 @@ function updateRound() {
 
     //if new round
     let prevRound = GM_getValue("round", null)
-    let currRound = $("#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-11r82tl > div.chakra-input__group.css-4302v8 > div.chakra-numberinput.css-5vz1f0")[0].getAttribute("value")
+    let currRound = $(NFC_ROUND_NUMBER)[0].getAttribute("value")
     if(currRound != prevRound) {
         GM_setValue("round", currRound) //and update the current round
         resetMsg = "New round detected, cleared stored bet info."
@@ -298,7 +319,7 @@ function updateMaxBet() {
             let mindiff = (currDate.getTime() - collectionDate.getTime())/1000/60
 
             if(mindiff < AUTOCOLLECT_TIMEOUT) {
-                let input = $("#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-11r82tl > div.chakra-skeleton> div > div.chakra-numberinput.css-5vz1f0 > input")[0]
+                let input = $(NFC_MAX_BET_INPUT)[0]
                 if(input.value < maxbetdata.maxbet) {
                     input.focus()
                     input.value = maxbetdata.maxbet
@@ -334,16 +355,16 @@ function applyMaxBetValue() {
 //note: designed with dark mode in mind, too lazy to make a light mode one too.
 function addNeoLinks(cont) {
     let linkCont = document.createElement("div")
-    linkCont.classList.add("css-cpjzy9")
+    linkCont.classList.add(BUTTON_CONTAINER)
     linkCont.style.marginRight = "20px"
     linkCont.style.color = "white"
     linkCont.id = "quicklink-cont"
     let linkCont2 = document.createElement("div")
-    linkCont2.classList.add("chakra-stack", "css-n21gh5")
+    linkCont2.classList.add("chakra-stack", BUTTON_CONTAINER_2)
 
     let button1 = document.createElement("button")
     button1.type = "button"
-    button1.classList.add("chakra-button", "css-178homt", "css-1a5epff")
+    button1.classList.add("chakra-button", NFC_BUTTON, NFC_BUTTON_NOBETS)
     let button2 = button1.cloneNode()
     button1.innerHTML = "Current Bets"
     button1.addEventListener("click", () => { window.open('https://www.neopets.com/pirates/foodclub.phtml?type=current_bets'); GM_setValue("toprocess", 0) })
@@ -428,12 +449,12 @@ function updateButtonStatus() {
         let statusMsg = betStatus[betNum]
         button.firstChild.data = statusMsg
         if(statusMsg == "Already placed!" || statusMsg == "Invalid bet!") {
-            button.classList.add("css-ejxey")
-            button.classList.remove("css-1t3af2r")
-            button.classList.remove("css-1a4vxth")
+            button.classList.add(RED_BET_BUTTON)
+            button.classList.remove(GRAY_BET_BUTTON)
+            button.classList.remove(GREEN_BET_BUTTON)
         }
         if(statusMsg == "Bet placed!") {
-            button.classList.add("css-1a4vxth")
+            button.classList.add(GRAY_BET_BUTTON)
             button.disabled = true
         }
     }
@@ -464,8 +485,8 @@ function onButtonClick(event, betNum, button) {
     event.stopPropagation()
     //updates button
     button.firstChild.data = "Processing..."
-    button.classList.remove("css-1a4vxth")
-    button.classList.add("css-1t3af2r")
+    button.classList.remove(GREEN_BET_BUTTON)
+    button.classList.add(GRAY_BET_BUTTON)
     button.disabled = true
     //generates link again... manually... and opens it in background
     let link = generate_bet_link(betNum)
@@ -515,7 +536,7 @@ function openBackgroundTab(url, betNum) {
 //=================
 
 function getBetTable() {
-    let t = document.querySelectorAll(".css-1l4tbns table.chakra-table.css-t1gveh")
+    let t = document.querySelectorAll(NFC_BET_TABLE)
     if(t.length > 0) {
         let last = Array.from(t).slice(-1)[0]
         if(last.querySelector("th").innerHTML == "Bet #") return last
@@ -573,14 +594,14 @@ function getRowFromCurrentBet(bet) {
 function addCSS() {
     document.head.appendChild(document.createElement("style")).innerHTML = `
     /* green button */
-    .css-1a4vxth[disabled], .css-1a4vxth[aria-disabled="true"], .css-1a4vxth[data-disabled] {
+    .${GREEN_BET_BUTTON}[disabled], .${GREEN_BET_BUTTON}[aria-disabled="true"], .${GREEN_BET_BUTTON}[data-disabled] {
         opacity: 0.4;
         box-shadow: var(--chakra-shadows-none);
         cursor: auto;
     }
 
     /*grey button*/
-    .css-1t3af2r {
+    .${GRAY_BET_BUTTON} {
         display: inline-flex;
         appearance: none;
         -webkit-box-align: center;
@@ -606,17 +627,17 @@ function addCSS() {
         padding-inline-end: var(--chakra-space-3);
         background: var(--chakra-colors-whiteAlpha-200);
     }
-    .css-1t3af2r:disabled, .css-1t3af2r[data-hover] {
+    .${GRAY_BET_BUTTON}:disabled, .${GRAY_BET_BUTTON}[data-hover] {
         background: var(--chakra-colors-whiteAlpha-300);
         cursor: not-allowed;
     }
     /* red button*/
-    .css-ejxey[disabled], .css-ejxey[aria-disabled="true"], .css-ejxey[data-disabled] {
+    .${RED_BET_BUTTON}[disabled], .${RED_BET_BUTTON}[aria-disabled="true"], .${RED_BET_BUTTON}[data-disabled] {
     opacity: 0.4;
     cursor: not-allowed;
     box-shadow: var(--chakra-shadows-none);
     }
-    .css-ejxey {
+    .${RED_BET_BUTTON} {
         display: inline-flex;
         appearance: none;
         -webkit-box-align: center;
