@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.5
+// @version      1.6
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -39,7 +39,7 @@ const ADD_NEO_LINKS = true //adds some quick links to neopets food club pages fo
 
 //selectors
 const NFC_BET_TABLE = ".css-1l4tbns table.chakra-table.css-t1gveh"
-const NFC_MAX_BET_INPUT = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k > input"
+const NFC_MAX_BET_INPUT = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-skeleton.css-cdkrf0 > div > div.chakra-numberinput.css-3e5t3k > input"
 const NFC_ROUND_NUMBER = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
 const NFC_BET_BAR = "#root > div > div.css-1m39luo"
 const NFC_NO_BET_BAR = "#root > div > div.css-1073utt"
@@ -320,6 +320,7 @@ function updateMaxBet() {
 
             if(mindiff < AUTOCOLLECT_TIMEOUT) {
                 let input = $(NFC_MAX_BET_INPUT)[0]
+                console.log(input.value)
                 if(input.value < maxbetdata.maxbet) {
                     input.focus()
                     input.value = maxbetdata.maxbet
