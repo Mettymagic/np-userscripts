@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Daily Puzzle Solver
-// @version      1.0
+// @version      1.1
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -56,9 +56,8 @@ function addStatusDisplay() {
 function setAnswer(resp) {
     //right question, grab answer
     //note: we have to spam .trim().normalize() because of hidden ascii chars and weird spaces
-    let s1 = document.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML.trim().normalize()
-    let s2 = resp.q.trim().normalize()
-    console.log(s1)
+    let s1 = document.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML.trim().normalize().replace(/\s+/g, ' ')
+    let s2 = resp.q.trim().normalize().replace(/\s+/g, ' ')
     if(s1 === s2) {
         GM_setValue("dailypuzzle", resp)
         let select = $("select[name='trivia_response']")[0]
