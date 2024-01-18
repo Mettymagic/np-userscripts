@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Neopets - Daily Puzzle Solver
-// @version      1.1
+// @name         Neopets - Daily Puzzle Solver <MettyNeo>
+// @version      1.2
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -9,7 +9,15 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Daily%20Puzzle%20Solver.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Daily%20Puzzle%20Solver.user.js
 // ==/UserScript==
+
+// You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
+// Feel free to contact me at @mettymagic on discord for any questions or inquiries. ^^
+
+// Trans rights are human rights ^^
+// metty says hi
 
 //resets stored answer on new day
 let date = getDate()
@@ -26,6 +34,7 @@ if(dp == null) requestTDNPage()
 //saved answer, use it
 else setAnswer(dp)
 
+//adds the status display message
 function addStatusDisplay() {
     if($("input[name='subbyvote']").length > 0 || $("input[name='pollres']").length > 0) return
 
@@ -53,6 +62,7 @@ function addStatusDisplay() {
     parent.appendChild(cont)
 }
 
+//parses the answer from TDN's page then selects said answer
 function setAnswer(resp) {
     //right question, grab answer
     //note: we have to spam .trim().normalize() because of hidden ascii chars and weird spaces
@@ -74,7 +84,7 @@ function setAnswer(resp) {
     }
 }
 
-
+//gets the daily puzzle data from TDN's page
 function requestTDNPage() {
     console.log("[DPS] Grabbing Daily Puzzle from TDN...")
     $("#dps_status")[0].innerHTML = "Checking TheDailyNeopets for answer..."
