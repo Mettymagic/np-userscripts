@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Neopets - Daily Puzzle Solver
-// @version      1.1
+// @name         Neopets - Daily Puzzle Solver <MettyNeo>
+// @version      1.3
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -9,7 +9,15 @@
 // @grant        GM_setValue
 // @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Daily%20Puzzle%20Solver.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Daily%20Puzzle%20Solver.user.js
 // ==/UserScript==
+
+// You are free to modify this script for personal use but modified scripts must not be shared publicly without permission.
+// Feel free to contact me at @mettymagic on discord for any questions or inquiries. ^^
+
+// Trans rights are human rights ^^
+// metty says hi
 
 //resets stored answer on new day
 let date = getDate()
@@ -26,6 +34,7 @@ if(dp == null) requestTDNPage()
 //saved answer, use it
 else setAnswer(dp)
 
+//adds the status display message
 function addStatusDisplay() {
     if($("input[name='subbyvote']").length > 0 || $("input[name='pollres']").length > 0) return
 
@@ -53,7 +62,9 @@ function addStatusDisplay() {
     parent.appendChild(cont)
 }
 
+//parses the answer from TDN's page then selects said answer
 function setAnswer(resp) {
+    console.log(resp)
     //right question, grab answer
     //note: we have to spam .trim().normalize() because of hidden ascii chars and weird spaces
     let s1 = document.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML.trim().normalize().replace(/\s+/g, ' ')
@@ -74,7 +85,7 @@ function setAnswer(resp) {
     }
 }
 
-
+//gets the daily puzzle data from TDN's page
 function requestTDNPage() {
     console.log("[DPS] Grabbing Daily Puzzle from TDN...")
     $("#dps_status")[0].innerHTML = "Checking TheDailyNeopets for answer..."
@@ -85,7 +96,8 @@ function requestTDNPage() {
             console.log("[DPS] Response received!")
             let doc = new DOMParser().parseFromString(response.responseText, "text/html")
             let question = doc.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML
-            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div").childNodes[4].nodeValue
+            //blame TDN for this absolute mess lol
+            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(2)").childNodes[2].nodeValue
             setAnswer({q: question, a: answer})
         }
     })
