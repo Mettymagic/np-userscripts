@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Daily Puzzle Solver <MettyNeo>
-// @version      1.3
+// @version      1.4
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -64,16 +64,17 @@ function addStatusDisplay() {
 
 //parses the answer from TDN's page then selects said answer
 function setAnswer(resp) {
-    console.log(resp)
     //right question, grab answer
     //note: we have to spam .trim().normalize() because of hidden ascii chars and weird spaces
-    let s1 = document.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML.trim().normalize().replace(/\s+/g, ' ')
-    let s2 = resp.q.trim().normalize().replace(/\s+/g, ' ')
+    let s1 = cleanString(document.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML)
+    let s2 = cleanString(resp.q)
     if(s1 === s2) {
         GM_setValue("dailypuzzle", resp)
         let select = $("select[name='trivia_response']")[0]
         //find option that matches the right answer
-        let option = Array.from(select.children).find((e) => e.innerHTML.includes(resp.a.trim().normalize()))
+        let option = Array.from(select.children).find(
+            (e) => cleanString(e.innerHTML).includes(cleanString(resp.a))
+        )
         select.value = option.value
         $("#dps_status")[0].innerHTML = "Answer selected, thanks TDN!"
         $("#community__2020 > div.community-top__2020 > div.puzzlepoll > div.puzzlepoll-container > div.dailypoll-left-content > div:nth-child(2) > form > select")[0].style.backgroundColor = "#bae8bb"
@@ -83,6 +84,10 @@ function setAnswer(resp) {
         $("#dps_status")[0].innerHTML = "Answer not posted, check back later!"
         GM_deleteValue("dailypuzzle")
     }
+}
+
+function cleanString(str) {
+    return str.trim().normalize().toLowerCase().replace(/\s+/g, ' ')
 }
 
 //gets the daily puzzle data from TDN's page
@@ -95,9 +100,9 @@ function requestTDNPage() {
         onload: function(response) {
             console.log("[DPS] Response received!")
             let doc = new DOMParser().parseFromString(response.responseText, "text/html")
-            let question = doc.querySelector("div.question.sf:not(:has(div.question.sf))").innerHTML
+            let question = doc.querySelector("div.question.sf:not(:has(div.question.sf))").childNodes[0].nodeValue
             //blame TDN for this absolute mess lol
-            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(2)").childNodes[2].nodeValue
+            let answer = doc.querySelector("div.question.sf:not(:has(div.question.sf)) > form").childNodes[2].nodeValue
             setAnswer({q: question, a: answer})
         }
     })
