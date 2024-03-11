@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Daily Puzzle Solver <MettyNeo>
-// @version      1.4
+// @version      1.4.1
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -100,9 +100,9 @@ function requestTDNPage() {
         onload: function(response) {
             console.log("[DPS] Response received!")
             let doc = new DOMParser().parseFromString(response.responseText, "text/html")
-            let question = doc.querySelector("div.question.sf:not(:has(div.question.sf))").childNodes[0].nodeValue
             //blame TDN for this absolute mess lol
-            let answer = doc.querySelector("div.question.sf:not(:has(div.question.sf)) > form").childNodes[2].nodeValue
+            let question = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(1) > div").innerHTML
+            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(2)").childNodes[2].nodeValue
             setAnswer({q: question, a: answer})
         }
     })
