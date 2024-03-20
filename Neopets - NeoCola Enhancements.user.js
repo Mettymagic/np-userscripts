@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoCola Enhancements <MettyNeo>
-// @version      1.5.3
+// @version      1.6
 // @description  Improves the NeoCola machine by tracking results, improving the UI and enabling the "legal cheat".
 // @author       Metamagic
 // @match        https://www.neopets.com/moon/neocola2.phtml*
@@ -33,6 +33,7 @@ const ALERT_ON_TRANSMOG = true // gives an alert when you earn a transmog prize 
 const BETTER_RESUBMIT = true //uses neocola2 and emulated requests to keep a queue of requests, allowing spammed requests to still be logged
     const START_TIMEOUT = 6000
     const RESUBMIT_TIMEOUT = 16000
+const DISPLAY_STATS_ON_MAIN_PAGE = true //displays total stats on the main neocola page
 
 //==============
 // main function
@@ -76,11 +77,11 @@ if(window.location.href.includes("neocola2.phtml")) {
         compressTokenDisplay(count) //compresses the giant token list
         modifyInputs() //cleans up and autofills inputs
         if(BETTER_RESUBMIT) {
-            addPrizeCSS()
             addQueueDisplay($("#content td.content > form input[type=submit]")[0])
         }
-        //displayStatOverview() //displays stats for all colors and individually
     }
+    addPrizeCSS()
+    displayAllStats()
 }
 else if(window.location.href.includes("neocola3.phtml")) {
     addPrizeCSS()
@@ -101,9 +102,9 @@ function modifyPrizePage() {
     recordItem() //records item prize
 
     //displays data
-    if(input) displayTokenNPStats(input)
+    if(input)  $("#content td.content")[0].appendChild(displayTokenNPStats(input))
     displayItemStats()
-    displayTransmogStats()
+    $("#content td.content")[0].appendChild(displayTransmogStats())
     $("#content td.content form > input[type=submit]")[0].value = "Run Awaaaaay!!!" //changes the text on the button to be a bit less misleading
     $("#content td.content form")[0].setAttribute("action", "neocola2.phtml") //brings to neocola2 instead of neocola1
     addSendButton()
@@ -316,7 +317,10 @@ function recordNP(input) {
     //inserts in sorted place
     if(np_res[npkey]) sortedInsert(np_res[npkey].list, np)
     //initializes if empty
-    else np_res[npkey].list = [np]
+    else {
+        np_res[npkey] = {}
+        np_res[npkey].list = [np]
+    }
 
     //update average np by summing up total earnings and adding our current earnings
     if(np_res[npkey].avg) np_res[npkey].avg = (np_res[npkey].avg * np_res[npkey].count + np) / (np_res[npkey].count + 1)
@@ -386,27 +390,66 @@ function updateTransmogStats(name) {
 // prize display
 //==============
 
+//displays stats on main page
+function displayAllStats() {
+    let center = $("#content > table > tbody > tr > td.content > div")[0]
+    let div = document.createElement("div")
+    div.id = "nce"
+    center.insertBefore(div, center.firstChild)
+
+    let statdiv = document.createElement("div")
+    statdiv.id = "totalstats"
+
+    //combos
+    let np_div = document.createElement("div")
+    np_div.id = "np_stats"
+    statdiv.appendChild(np_div)
+
+    for(const combo of Object.keys(GM_getValue("np_res"))) {
+        np_div.appendChild(displayTokenNPStats(JSON.parse(combo), true))
+    }
+
+    //transmogs
+    let transmog_div = document.createElement("div")
+    transmog_div.id = "transmog_stats"
+    statdiv.appendChild(transmog_div)
+
+    transmog_div.appendChild(displayTransmogStats())
+    //transmog_div.appendChild(displayTransmogWinnings())
+
+    div.appendChild(statdiv)
+    let imgdiv = document.createElement("div")
+    $("#content > table > tbody > tr > td.content > div > img").appendTo(imgdiv)
+    div.appendChild(imgdiv)
+}
+
 //displays stats for the specific input combo
-function displayTokenNPStats(input) {
+function displayTokenNPStats(input, hideRun = false) {
     let color = input.color
     let count = GM_getValue("tokencount")?.[color]
     let used = GM_getValue("tokensused")
     const np_res = GM_getValue("np_res")
-    if(count && used && np_res) { //display only if our data didn't get wiped somehow
+    if(np_res) {
         let res = np_res[JSON.stringify(input)]
         let left = count - used
         let countdiv = document.createElement("div")
-        countdiv.id = "tokensused"
-        countdiv.innerHTML = `
-            <img src="//images.neopets.com/items/sloth_token_${color}.gif" width="80" height="80">
-            <br>
-            <b>Starting Tokens:</b> ${count.toLocaleString("en-US")}
-            <br>
-            <b>Tokens Used:</b> ${used.toLocaleString("en-US")}
-            <br>
-            <b>Tokens Left:</b> ${left.toLocaleString("en-US")}
-            <br><br>
-            <u><b>${color.charAt(0).toUpperCase() + color.substr(1)} Token Stats:</b></u>
+        countdiv.classList.add("tokensused")
+        countdiv.innerHTML += `
+                <img src="https://images.neopets.com/items/sloth_token_${color}.gif" width="80" height="80">
+                <br>
+         `
+        if(!hideRun) {
+            countdiv.innerHTML += `
+                <b>Starting Tokens:</b> ${count.toLocaleString("en-US")}
+                <br>
+                <b>Tokens Used:</b> ${used.toLocaleString("en-US")}
+                <br>
+                <b>Tokens Left:</b> ${left.toLocaleString("en-US")}
+                <br><br>
+            `
+        }
+        countdiv.innerHTML += `
+            <u><b>${color.charAt(0).toUpperCase() + color.substr(1)} Total Stats:</b></u>
             <br>
             <b>Tokens Used:</b> ${(res.count).toLocaleString("en-US")}
             <br>
@@ -414,8 +457,8 @@ function displayTokenNPStats(input) {
             <br>
             <b>Highest NP:</b> ${Math.max(res.list.slice(-1)[0]).toLocaleString("en-US")} NP
         `
-        $("#content td.content")[0].appendChild(countdiv)
         console.log(`[NCE] Token display added.`)
+        return countdiv
     }
 }
 
@@ -434,7 +477,7 @@ function displayItemStats() {
 function displayTransmogStats() {
     const results = GM_getValue("transmog_res")
     let odddiv = document.createElement("div")
-    odddiv.id = "estodds"
+    odddiv.classList.add("estodds")
 
     let itemname = $("#content td.content > div[align='center'] > b:last-of-type")[0].innerHTML
     let img = GM_getValue("lasttransmog", "//images.neopets.com/items/pot_acara_mutant.gif")
@@ -459,7 +502,11 @@ function displayTransmogStats() {
             <b>Total Odds:</b> ${(results.prob*100.0).toLocaleString("en-US")}%
         `
     }
-    $("#content td.content")[0].appendChild(odddiv)
+    return odddiv
+}
+
+function displayTransmogWinnings() {
+    let res = GM_getValue("transmog_res")[list]
 }
 
 
@@ -575,7 +622,43 @@ function addSelectCSS() {
 
 function addPrizeCSS() {
     document.head.appendChild(document.createElement("style")).innerHTML = `
-        #tokensused {
+        #nce {
+            display: flex;
+            position: relative;
+        }
+        #totalstats {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            text-align: center;
+            padding: 6px;
+            border: 1px solid black;
+            background-color: white;
+            height: auto;
+            margin: auto;
+        }
+
+        #np_stats, #transmog_stats {
+            position: relative;
+            display: block;
+            width: fit-content;
+            height: fit-content;
+            padding: 8px;
+        }
+
+        #totalstats > div {
+            display: flex;
+            position: relative;
+            flex-direction: row;
+            gap: 4px;
+        }
+        #totalstats .tokensused, #totalstats .estodds {
+            position: relative;
+            left: auto;
+            top: auto;
+        }
+
+        .tokensused {
             display: block;
             position: absolute;
             text-align: center;
@@ -585,7 +668,7 @@ function addPrizeCSS() {
             top: 30px;
             background-color: white;
         }
-        #estodds {
+        .estodds {
             display: block;
             position: absolute;
             text-align: center;
