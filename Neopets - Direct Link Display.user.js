@@ -103,7 +103,7 @@ if(url.includes("/process_cocoshy.phtml")) {
 })()
 
 function getTime(date = new Date(), zeroTime = false) {
-    let d = date.toLocaleString("en-US", {timeZone: "PST"}).split(",")
+    let d = date.toLocaleString("en-US", {timeZone: "America/Los_Angeles"}).split(",")
     if(zeroTime) return {date: d[0].trim(), time: "12:00:00 AM NST"}
     else return {date: d[0].trim(), time: d[1].trim()+" NST"}
 }
