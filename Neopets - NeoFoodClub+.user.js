@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.6
+// @version      1.7
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -38,11 +38,11 @@ const ADD_NEO_LINKS = true //adds some quick links to neopets food club pages fo
 //===============
 
 //selectors
-const NFC_BET_TABLE = ".css-1l4tbns table.chakra-table.css-t1gveh"
-const NFC_MAX_BET_INPUT = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-skeleton.css-cdkrf0 > div > div.chakra-numberinput.css-3e5t3k > input"
-const NFC_ROUND_NUMBER = "#root > header > div > div.css-1g2m7qa > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
-const NFC_BET_BAR = "#root > div > div.css-1m39luo"
-const NFC_NO_BET_BAR = "#root > div > div.css-1073utt"
+const NFC_BET_TABLE = "#root > div.css-1yysssr > div:nth-child(4) > table" // the <table> div
+const NFC_MAX_BET_INPUT = "#root > header > div > div.css-3lda7a > div > div.chakra-stack.css-101yqjc > div.chakra-skeleton.css-cdkrf0 > div > div.chakra-numberinput.css-3e5t3k > input"
+const NFC_ROUND_NUMBER = "#root > header > div > div.css-3lda7a > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
+const NFC_BET_BAR = "#root > div.css-1yysssr > div.css-1s00nyj"
+const NFC_NO_BET_BAR = "#root > div.css-1yysssr > div:nth-child(2) > div.css-1p24gq2 > div"
 
 //classes
 const BUTTON_CONTAINER = "css-cpjzy9"
@@ -153,6 +153,7 @@ else if(window.location.href.includes("neopets.com/pirates/foodclub.phtml?type=c
 function waitForBetTable() {
     //the table we want already exists, wait for it to finish populating
     let table = getBetTable()
+    console.log(table)
     if(table) {
         const settableobs = new MutationObserver(mutations => {
             if(table.rows[1].children.length == 14) {
@@ -233,7 +234,7 @@ function addBetAllButton() {
 
     div.appendChild(button)
     div.appendChild(reminder)
-    $("#root > div > div.css-1m39luo > div.css-1sssh7k > div")[0].appendChild(div)
+    $(NFC_BET_BAR)[0].appendChild(div)
 }
 
 function updateRound() {
