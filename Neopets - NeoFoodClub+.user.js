@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.7
+// @version      1.8
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -43,6 +43,7 @@ const NFC_MAX_BET_INPUT = "#root > header > div > div.css-3lda7a > div > div.cha
 const NFC_ROUND_NUMBER = "#root > header > div > div.css-3lda7a > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
 const NFC_BET_BAR = "#root > div.css-1yysssr > div.css-1s00nyj"
 const NFC_NO_BET_BAR = "#root > div.css-1yysssr > div:nth-child(2) > div.css-1p24gq2 > div"
+const NFC_APPLY_BET_VALUE = "#root > div.css-1yysssr > div.css-1s00nyj > div.chakra-stack.css-8g8ihq > div > button.chakra-button.css-148ck9i"
 
 //classes
 const BUTTON_CONTAINER = "css-cpjzy9"
@@ -346,7 +347,7 @@ function updateMaxBet() {
 //presses the 'set bet amounts to max' button
 function applyMaxBetValue() {
     if(AUTOMAXBET) {
-        let button = Array.from($("#root > div > div > div button")).filter(b => b.textContent == "Set bet amounts to max")[0]
+        let button = $(NFC_APPLY_BET_VALUE)[0]
         if(button) {
             button.click()
             console.log("[NFC+] Bets automatically set to max value.")
