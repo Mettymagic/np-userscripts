@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - NeoFoodClub+ <MettyNeo>
-// @version      1.8
+// @version      2.0
 // @description  Adds some improvements to neofood.club including remembering bet status, unfocusing tabs and auto-closing tabs.
 // @author       Metamagic
 // @match        *neofood.club/*
@@ -26,6 +26,8 @@
 // script options
 //===============
 
+const DEBUG = true //just leaves print statements on
+
 const AUTOCLOSETABS = true //automatically closes bet tabs
 const FORCEBGTAB = true //forces new tabs to be in the background
 const AUTOMAXBET = true //automatically fills max bet value
@@ -38,9 +40,9 @@ const ADD_NEO_LINKS = true //adds some quick links to neopets food club pages fo
 //===============
 
 //selectors
-const NFC_BET_TABLE = "#root > div.css-1yysssr > div:nth-child(4) > table" // the <table> div
-const NFC_MAX_BET_INPUT = "#root > header > div > div.css-3lda7a > div > div.chakra-stack.css-101yqjc > div.chakra-skeleton.css-cdkrf0 > div > div.chakra-numberinput.css-3e5t3k > input"
-const NFC_ROUND_NUMBER = "#root > header > div > div.css-3lda7a > div > div.chakra-stack.css-101yqjc > div.chakra-input__group.css-1sgvlhh > div.chakra-numberinput.css-3e5t3k"
+const NFC_BET_TABLE = "#root > div:nth-child(2) > div:nth-child(4) > table" // the <table> div
+const NFC_MAX_BET_INPUT = "#root > header > div > div:nth-child(3) > div > div:nth-child(1) > div:nth-child(2) > div > div:nth-child(2) > input"
+const NFC_ROUND_NUMBER = "#root > header > div > div:nth-child(3) > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(2) > input"
 const NFC_BET_BAR = "#root > div.css-1yysssr > div.css-1s00nyj"
 const NFC_NO_BET_BAR = "#root > div.css-1yysssr > div:nth-child(2) > div.css-1p24gq2 > div"
 const NFC_APPLY_BET_VALUE = "#root > div.css-1yysssr > div.css-1s00nyj > div.chakra-stack.css-8g8ihq > div > button.chakra-button.css-148ck9i"
@@ -53,6 +55,16 @@ const NFC_BUTTON_NOBETS = "css-igc3ti"
 const GREEN_BET_BUTTON = "css-13ncfhw"
 const GRAY_BET_BUTTON = "css-n1yvyo"
 const RED_BET_BUTTON = "css-1j410sj"
+
+if(DEBUG == true) debug()
+function debug() {
+    console.log($(NFC_BET_TABLE)[0])
+    console.log($(NFC_MAX_BET_INPUT)[0])
+    console.log($(NFC_ROUND_NUMBER)[0])
+    console.log($(NFC_BET_BAR)[0])
+    console.log($(NFC_NO_BET_BAR)[0])
+    console.log($(NFC_APPLY_BET_VALUE)[0])
+}
 
 
 //================
