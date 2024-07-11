@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.8.1
+// @version      2.8.2
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -1305,18 +1305,18 @@ function addLootBars() {
     let w1 = GM_getValue("bdloottrack", {items:0, np:0}).items
     bar1.querySelector(".lootprogress-bar").style.backgroundColor = "#1E90FF"
     bar1.querySelector(".lootprogress-bar").style.width = `${Math.min(w1/MAX_ITEMS*100.0, 100)}%`
-    bar1.querySelector(".lootprogress-text").innerHTML = `${w1} / 15 Items`
+    bar1.querySelector(".lootprogress-text").innerHTML = `${w1} / ${MAX_ITEMS} Items`
     //np bar
     let w2 = GM_getValue("bdloottrack", {items:0, np:0}).np
     bar2.querySelector(".lootprogress-bar").style.backgroundColor = "#DAA520"
     bar2.querySelector(".lootprogress-bar").style.width = `${Math.min(w2/MAX_NP*100.0, 100)}%`
-    bar2.querySelector(".lootprogress-text").innerHTML = `${w2} / 50000 NP`
+    bar2.querySelector(".lootprogress-text").innerHTML = `${w2} / ${MAX_NP} NP`
 
     if(isTVW) {
         let w3 = GM_getValue("bdtvwtrack", 0)
         bar3.querySelector(".lootprogress-bar").style.backgroundColor = "#A171BF"
         bar3.querySelector(".lootprogress-bar").style.width = `${Math.min(w3/MAX_PP*100.0, 100)}%`
-        bar3.querySelector(".lootprogress-text").innerHTML = `${w3} / 200 Plot Points`
+        bar3.querySelector(".lootprogress-text").innerHTML = `${w3} / ${MAX_PP} Plot Points`
     }
 
     //adds loot bars to page
