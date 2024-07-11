@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.7
+// @version      2.8.1
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -27,6 +27,10 @@ const IMPROVE_CHALLENGER_LIST = true //enables the 1P challenger list improvemen
 const LOOT_DISPLAY = true //displays earned loot in the form of pretty progress bars
 const INDEX_REDIRECT = true //redirects off the main index page to the fight page
 const LOOSE_OBELISK_RESTRICTIONS = true //allows the script to be used in obelisk battles if you haven't done your 10 battles or if you haven't earned your 15 items. honor means nothing compared to convenience.
+
+const MAX_NP = 50000
+const MAX_ITEMS = 30
+const MAX_PP = 200
 
 //TO-DO:
 // - give obelisk opponents own section in BD list
@@ -1300,18 +1304,18 @@ function addLootBars() {
     //item bar
     let w1 = GM_getValue("bdloottrack", {items:0, np:0}).items
     bar1.querySelector(".lootprogress-bar").style.backgroundColor = "#1E90FF"
-    bar1.querySelector(".lootprogress-bar").style.width = `${Math.min(w1/15.0*100.0, 100)}%`
+    bar1.querySelector(".lootprogress-bar").style.width = `${Math.min(w1/MAX_ITEMS*100.0, 100)}%`
     bar1.querySelector(".lootprogress-text").innerHTML = `${w1} / 15 Items`
     //np bar
     let w2 = GM_getValue("bdloottrack", {items:0, np:0}).np
     bar2.querySelector(".lootprogress-bar").style.backgroundColor = "#DAA520"
-    bar2.querySelector(".lootprogress-bar").style.width = `${Math.min(w2/50000.0*100.0, 100)}%`
+    bar2.querySelector(".lootprogress-bar").style.width = `${Math.min(w2/MAX_NP*100.0, 100)}%`
     bar2.querySelector(".lootprogress-text").innerHTML = `${w2} / 50000 NP`
 
     if(isTVW) {
         let w3 = GM_getValue("bdtvwtrack", 0)
         bar3.querySelector(".lootprogress-bar").style.backgroundColor = "#A171BF"
-        bar3.querySelector(".lootprogress-bar").style.width = `${Math.min(w3/200.0*100.0, 100)}%`
+        bar3.querySelector(".lootprogress-bar").style.width = `${Math.min(w3/MAX_PP*100.0, 100)}%`
         bar3.querySelector(".lootprogress-text").innerHTML = `${w3} / 200 Plot Points`
     }
 
