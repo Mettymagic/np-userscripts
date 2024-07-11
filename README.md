@@ -86,6 +86,10 @@ ___
 * 🧩 [Daily Puzzle Solver](Neopets%20-%20Daily%20Puzzle%20Solver.user.js)
 	- Automatically grabs and selects the correct daily puzzle answer from TheDailyNeopets
 	- Permission to use pages was obtained and credit included. Thanks TDN team!
+	
+* 🌎 [Quick Exploration Links](Neopets%20-%20Quick%20Exploration%20Links.user.js)
+	- Adds a drop-down to the Explore link on beta pages
+	- Easy to add custom links!
 
 ___
 
