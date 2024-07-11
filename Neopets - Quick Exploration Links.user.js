@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name         Neopets - Quick Exploration Links <MettyNeo>
-// @version      0.9
+// @version      1.0
 // @description  Adds some quicklinks under the beta "Explore" button
 // @author       Mettymagic
 // @match        https://www.neopets.com/*
 // @match        https://neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        none
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/blob/main/Neopets%20-%20Quick%20Exploration%20Links.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/blob/main/Neopets%20-%20Quick%20Exploration%20Links.user.js
 // @run-at       document-start
 // ==/UserScript==
 
@@ -15,32 +17,32 @@ const LINK_LIST = [
     {
         name:"Inventory",
         link:"/inventory.phtml",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/af13h43uw1/games/tm_3.png"
     },
     {
         name:"Quickref",
         link:"/quickref.phtml",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/themes/h5/altadorcup/images/transferlog-icon.png"
     },
     {
         name:"Neopia Central",
         link:"/objects.phtml",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/bestof/2008/neopiacentral.gif"
     },
     {
         name:"Plot Hub",
         link:"/tvw",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/neoboards/boardIcons/plot_tvw.png"
     },
     {
         name:"Hospital",
         link:"/hospital/volunteer.phtml",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/themes/h5/basic/images/health-icon.png"
     },
     {
         name:"Barracks",
         link:"/dome/barracks.phtml",
-        img:"https://images.neopets.com/ncmall/2009/mystery_cap_adv/cap_hamburger.png"
+        img:"https://images.neopets.com/themes/036_ddc_je4z0/events/battle_accept.png"
     }
 ]
 
