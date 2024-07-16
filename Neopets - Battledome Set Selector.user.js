@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.8.2
+// @version      2.8.3
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -29,7 +29,7 @@ const INDEX_REDIRECT = true //redirects off the main index page to the fight pag
 const LOOSE_OBELISK_RESTRICTIONS = true //allows the script to be used in obelisk battles if you haven't done your 10 battles or if you haven't earned your 15 items. honor means nothing compared to convenience.
 
 const MAX_NP = 50000
-const MAX_ITEMS = 30
+const MAX_ITEMS = 15
 const MAX_PP = 200
 
 //TO-DO:
@@ -177,7 +177,11 @@ function addBar() {
             if(hud.children[5].innerHTML <= 0 || hud.children[6].innerHTML <= 0) {
                 let obelisktrack = GM_getValue("obelisktrack", {count:0, points:0, date:-1})
                 //resets tracked loot on new day
-                if(getDate() != GM_getValue("bdloottrack", {items:0, np:0, date:null}).date) GM_deleteValue("bdloottrack")
+                if(getDate() != GM_getValue("bdloottrack", {items:0, np:0, date:null}).date)
+                {
+                    GM_deleteValue("bdloottrack")
+                    GM_deleteValue("bdtvwtrack")
+                }
                 //resets obelisk data after 4 days (aka the duration of the war)
                 if(new Date().valueOf() - obelisktrack.date > 1000*60*60*24*4) GM_deleteValue("obelisktrack")
                 //skips final animation
