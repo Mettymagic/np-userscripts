@@ -1418,7 +1418,7 @@ function clone(data) {
 }
 
 function getDate() {
-    return new Date().toLocaleString("en-US", {timeZone: "PST"}).slice(0, 10).replace(",","")
+    return new Date().toLocaleString("en-US", {timeZone: "America/Los_Angeles"}).slice(0, 10).replace(",","")
 }
 
 function getItemURL(node, ability=false) {
