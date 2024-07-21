@@ -1,9 +1,8 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus
-// @version      2.8
-// @description  APS adds a button that lets you easily switch your active pet. In the classic theme, this will appear underneath your pet's image in the sidebar. In beta, it will appear next to the icons
-//               that float at the top of every page (Bookmarks, Favorites, Shop Wizard). FVP adds additional info to the fishing vortex.
-// @author       Metamagic
+// @version      2.8.1
+// @description  APS adds a button that lets you easily switch your active pet. In the classic theme, this will appear underneath your pet's image in the sidebar. In beta, it will appear next to the icons that float at the top of every page (Bookmarks, Favorites, Shop Wizard). FVP adds additional info to the fishing vortex.
+// @author       Metamagic, with modifications by chanakin
 // @match        *://*.neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_getValue
