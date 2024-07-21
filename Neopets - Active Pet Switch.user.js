@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Neopets - Active Pet Switch & Fishing Vortex Plus (modified by Chanakin)
+// @name         Neopets - Active Pet Switch & Fishing Vortex Plus
 // @version      2.8
 // @description  APS adds a button that lets you easily switch your active pet. In the classic theme, this will appear underneath your pet's image in the sidebar. In beta, it will appear next to the icons
 //               that float at the top of every page (Bookmarks, Favorites, Shop Wizard). FVP adds additional info to the fishing vortex.
-// @author       Metamagic, with modifications by chanakin
+// @author       Metamagic
 // @match        *://*.neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_getValue
@@ -56,21 +56,24 @@ const REMOVE_CAST_BUTTON = true
 const url = document.location.href
 //check for the top left pet icon to know we're in beta
 let isBeta = false
-if($("[class^='nav-pet-menu-icon']").length) isBeta = true
+if ($("[class^='nav-pet-menu-icon']").length) isBeta = true
+
 let timeoutId = null
 
-if(url.includes("neopets.com/home")) {
+if (url.includes("neopets.com/home")) {
     getPetData(document) //always update the data while we're here
     //close if flagged to
     let timeout = GM_getValue("stackpath-timeout")
-    if(timeout) {
+    if (timeout) {
         GM_deleteValue("stackpath-timeout")
-        //wont close tab after 15 second timeout
-        if(new Date().valueOf() - timeout < 1000*15) window.close()
+        // won't close tab after 15 second timeout
+        if (new Date().valueOf() - timeout < 1000 * 15) {
+            window.close()
+        }
     }
 }
 
-if(url.includes("water/fishing.phtml")) {
+if (url.includes("water/fishing.phtml")) {
     handleFishingVortex()
 }
 
@@ -80,13 +83,16 @@ listenForPetUpdates() //adds a listener for updates to the script's stored pet l
 //=========
 // overhead
 //=========
+function clearPetList() {
+    GM_setValue("petlist", {})
+}
 
-function requestHomePage() {
-    GM_setValue("petlist", {}) //clears pet list
-    $.get("https://www.neopets.com/home/", function(data, status){
+function updatePetList() {
+    clearPetList()
+    $.get("https://www.neopets.com/home/", function (data) {
         let doc = new DOMParser().parseFromString(data, "text/html")
         //sometimes stackpath blocks the page, in which case open a newtab and close it after
-        if(doc.title != "Welcome to Neopets!") {
+        if (doc.title !== "Welcome to Neopets!") {
             console.log("[APS] Home page request blocked by stackpath, opening tab manually.")
             GM_setValue("stackpath-timeout", new Date().valueOf())
             window.open("https://www.neopets.com/home/")
@@ -97,13 +103,36 @@ function requestHomePage() {
     })
 }
 
-function checkForUpdate() {
+function timeoutForUpdateExceeded() {
+    return new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000 * 60 * 60 * HOME_DATA_TIMEOUT && HOME_DATA_TIMEOUT > 0
+}
+
+function usernameHasChanged() {
+    return getUsername() !== GM_getValue("un")
+}
+
+function petListExists() {
+    return GM_getValue("petlist", false)
+}
+
+function shouldUpdate() {
     //revalidates data if it times out or if username changes
-    if(new Date().valueOf() - GM_getValue("lastupdate", 0) > 1000*60*60*HOME_DATA_TIMEOUT && HOME_DATA_TIMEOUT > 0) console.log("[APS] Updating data for new day.")
-    else if(getUsername() != GM_getValue("un")) console.log("[APS] Updating data for new user.")
-    else if(!GM_getValue("petlist", false)) console.log("[APS] Getting user pet data for first time.")
-    else return false
-    return true
+    if (timeoutForUpdateExceeded()) {
+        console.log("[APS] Updating data for new day.")
+        return true
+    }
+
+    if (usernameHasChanged()) {
+        console.log("[APS] Updating data for new user.")
+        return true
+    }
+
+    if (!petListExists()) {
+        console.log("[APS] Getting user pet data for first time.")
+        return true
+    }
+
+    return false
 }
 
 function getPetData(doc) {
@@ -114,29 +143,36 @@ function getPetData(doc) {
     console.log("[APS] Pet data updated.")
 }
 
+function emptyJson(newValue) {
+    return JSON.stringify(newValue) === JSON.stringify({});
+}
+
+function setRefreshButtonVisible(visible) {
+    Array.from($(".activetable > a")).forEach(link => {
+        if (visible) {
+            link.style.display = "none"
+        } else {
+            link.style.display = "block"
+        }
+    })
+}
+
 function listenForPetUpdates() {
-    GM_addValueChangeListener("petlist", function(key, oldValue, newValue, remote) {
+    GM_addValueChangeListener("petlist", function (key, oldValue, newValue, _) {
         //if pet list is now empty, adds loading msg
-        if(JSON.stringify(newValue) == JSON.stringify({})) {
+        if (emptyJson(newValue)) {
             console.log("[APS] Cleared pet tables.")
             addLoadDivs()
-            //removes refresh button
-            for(let link of Array.from($(".activetable > a"))) {
-                link.style.display = "none"
-            }
+            setRefreshButtonVisible(false)
+            return
         }
-        //if pet list is otherwise updated, update tables
-        else {
-            console.log("[APS] Updated pet tables.")
-            console.log(newValue)
-            clearTimeout(timeoutId)
-            timeoutId = null
-            populateTables()
-            //adds refresh button back
-            for(let link of Array.from($(".activetable > a"))) {
-                link.style.display = "block"
-            }
-        }
+
+        console.log("[APS] Updated pet tables.")
+        console.log(newValue)
+        clearTimeout(timeoutId)
+        timeoutId = null
+        populateTables()
+        setRefreshButtonVisible(true)
     })
 }
 
@@ -147,24 +183,26 @@ function listenForPetUpdates() {
 function createMenuButton() {
     let parentElement = getButtonLocation()
 
-    if(parentElement) {
-        var changeActivePetShortcut
+    if (parentElement) {
+        let changeActivePetShortcut
 
         if (isBeta) {
             changeActivePetShortcut = createShortcutIcon("#", "https://images.neopets.com/themes/h5/constellations/images/mypets-icon.svg")
-        }
-        else {
+        } else {
             changeActivePetShortcut = document.createElement("a")
             changeActivePetShortcut.href = "#"
             changeActivePetShortcut.innerHTML = "Change Active Pet"
-
         }
 
         addCSS()
+
         changeActivePetShortcut.classList.add("openmenubutton")
-        changeActivePetShortcut.addEventListener("click", ()=>{openMenu()})
+        changeActivePetShortcut.addEventListener("click", () => {
+            openMenu()
+        })
+
         parentElement.appendChild(changeActivePetShortcut);
-        createMenu() //only adds menu to pages with buttons
+        createMenu()
     }
 }
 
@@ -181,34 +219,32 @@ function createMenu() {
     document.body.appendChild(menu)
 
     // revalidates if it needs to
-    if(checkForUpdate()) {
-        requestHomePage()
+    if (shouldUpdate()) {
+        updatePetList()
+        return
     }
-    // otherwise populates immediately
-    else populateTables()
+
+    populateTables()
 }
 
 function populateTables() {
     let petList = Object.values(GM_getValue("petlist", {}))
-    let tables = Array.from($(".activetable"))
+    if (petList.length < 1) {
+        addLoadDivs()
+        updatePetList()
+        return
+    }
 
-    for(let table of tables) {
-        if(petList.length < 1) {
-            addLoadDivs()
-            requestHomePage()
-            break
-        }
-        else {
-            table.innerHTML = ""
-        }
+    Array.from($(".activetable")).forEach(table => {
+        table.innerHTML = ""
 
         let activePet = getActivePet()
 
         for (let i = 0; i < 4; i++) { //4 rows
             let row = table.insertRow()
-            for(let j = 0; j < 5; j++) { //5 per row
-                let index = i*5 + j
-                if(index < petList.length) {
+            for (let j = 0; j < 5; j++) { //5 per row
+                let index = i * 5 + j
+                if (index < petList.length) {
                     let img = petList[index].img.withBG //300x300
                     let name = petList[index].name
 
@@ -222,12 +258,20 @@ function populateTables() {
                     d2.innerHTML = name
                     cell.appendChild(d1)
                     cell.appendChild(d2)
-                    if(activePet == name) cell.setAttribute("active", "")
-                    else {
-                        cell.addEventListener("click", (event)=>{event.stopPropagation(); changeActivePet(name);})
+
+                    if (activePet === name) {
+                        cell.setAttribute("active", "")
+                    } else {
+                        cell.addEventListener("click", (event) => {
+                            event.stopPropagation();
+                            changeActivePet(name);
+                        })
                         cell.style.cursor = "pointer"
                     }
-                    if(url.includes("water/fishing.phtml") || FISHING_DISPLAY_MODE == 2) addFishingPetDisplay(cell, name)
+
+                    if (url.includes("water/fishing.phtml") || FISHING_DISPLAY_MODE === 2) {
+                        addFishingPetDisplay(cell, name)
+                    }
                 }
             }
         }
@@ -236,24 +280,24 @@ function populateTables() {
         refresh.innerHTML = "(refresh pet list)"
         refresh.addEventListener("click", (event) => {
             event.stopPropagation()
-            requestHomePage() //updates pet list
+            updatePetList() //updates pet list
         })
         table.appendChild(refresh)
         console.log(`[APS] Table populated with ${petList.length} pets.`)
-    }
+    })
 }
 
 function addLoadDivs() {
     let loadMsg = '<div class="dot-spin"></div><div style="margin-top: 30px">Fetching pet data...</div>'
-    for(let table of Array.from($(".activetable"))) {
-        table.innerHTML = loadMsg
-    }
-    //if it hasn't grabbed results after 5 seconds, display a message
+    Array.from($(".activetable")).forEach(table => table.innerHTML = loadMsg)
+
+    // if it hasn't grabbed results after 5 seconds, display a message
     timeoutId = setTimeout(() => {
-        for(let table of Array.from($(".activetable"))) {
-            if(table.innerHTML == loadMsg)
+        Array.from($(".activetable")).forEach(table => {
+            if (table.innerHTML === loadMsg) {
                 table.innerHTML += '<div><a href="/home" target="_blank"><small>(click here if its taking too long)</small></a></div>'
-        }
+            }
+        })
     }, 3000)
 }
 
@@ -283,13 +327,15 @@ function addFishingTable(header) {
 //=====================
 
 function openMenu() {
-    $("#select-active-pet-menu").css("display","flex") //makes menu visible
-    setTimeout(()=>{document.body.addEventListener("click", exitClick, false)}, 50) //adds the exit click a short delay after menu is created
+    $("#select-active-pet-menu").css("display", "flex") //makes menu visible
+    setTimeout(() => {
+        document.body.addEventListener("click", exitClick, false)
+    }, 50) //adds the exit click a short delay after menu is created
 }
 
 function exitClick(event) {
     event.stopPropagation()
-    if(!(document.querySelector(".activetableheader").contains(event.target) || document.querySelector(".activetable").contains(event.target))) {
+    if (!(document.querySelector(".activetableheader").contains(event.target) || document.querySelector(".activetable").contains(event.target))) {
         $("#select-active-pet-menu")[0].style.display = "none"
         document.body.removeEventListener("click", exitClick, false)
     }
@@ -298,7 +344,7 @@ function exitClick(event) {
 function changeActivePet(name) {
     let img = GM_getValue("petlist", {})[name].img.withBG
 
-    for(let table of Array.from($(".activetable"))) {
+    Array.from($(".activetable")).forEach(table => {
         table.innerHTML = ""
         let d1 = document.createElement("div"), d2 = document.createElement("div"), d3 = document.createElement("div")
         d1.innerHTML = `<img src=${img} width="150" height="150" alt=${name}>`
@@ -318,15 +364,16 @@ function changeActivePet(name) {
         d2.innerHTML = `Setting ${name} as active pet...`
         table.appendChild(d1)
         table.appendChild(d2)
-    }
-    $.get("/process_changepet.phtml?new_active_pet="+name, function(){
+    })
+
+    $.get("/process_changepet.phtml?new_active_pet=" + name, function () {
         console.log(`[APS] Active pet changed to ${name}.`)
-        for(let table of Array.from($(".activetable"))) {
+        Array.from($(".activetable")).forEach(table => {
             table.querySelector(".dot-spin").style.display = "none"
             table.querySelector("#set-active-msg").innerHTML = `${name} is now your active pet!`
-        }
+        })
 
-        if(url.includes("water/fishing.phtml")) {
+        if (url.includes("water/fishing.phtml")) {
             window.location.replace("fishing.phtml")
         } else {
             window.location.reload()
@@ -338,21 +385,43 @@ function changeActivePet(name) {
 //==================
 // fvp functionality
 //==================
+function isFishingResultPage() {
+    return Array.from($("#container__2020 > p")).some((p) => {
+        return p.innerHTML === "You reel in your line and get..."
+    })
+}
+
+function isFishingHomePage() {
+    return $("#pageDesc").length > 0
+}
 
 function handleFishingVortex() {
 
-    //result page
-    if(Array.from($("#container__2020 > p")).some((p)=>{return p.innerHTML == "You reel in your line and get..."})) {
-        if(FISHING_DISPLAY_MODE >= 0) addFishingTable(`<b>Fish With:</b>`)
-        if(REMOVE_CAST_BUTTON) removeCastButton()
-        if(FISHING_TIME_TRACK || FISHING_LEVEL_TRACK) handleFishingResult()
-    }
-    //main page
-    else if($("#pageDesc").length > 0) {
-        if(FISHING_DISPLAY_MODE >= 0) addFishingTable(`<b>Change Active Pet:</b>`)
-        if(FISHING_LEVEL_TRACK) initializePetLevel()
+    if (isFishingResultPage()) {
+        if (FISHING_DISPLAY_MODE >= 0) {
+            addFishingTable(`<b>Fish With:</b>`)
+        }
 
-        $(document).ready(function(){
+        if (REMOVE_CAST_BUTTON) {
+            removeCastButton()
+        }
+
+        if (FISHING_TIME_TRACK || FISHING_LEVEL_TRACK) {
+            handleFishingResult()
+        }
+        return
+    }
+
+    if (isFishingHomePage()) {
+        if (FISHING_DISPLAY_MODE >= 0) {
+            addFishingTable(`<b>Change Active Pet:</b>`)
+        }
+
+        if (FISHING_LEVEL_TRACK) {
+            initializePetLevel()
+        }
+
+        $(document).ready(function () {
             $('input[value="Reel In Your Line"]').click()
         })
     }
@@ -361,107 +430,158 @@ function handleFishingVortex() {
 function initializePetLevel() {
     let list = GM_getValue("fishinglist", {})
     let name = getActivePet()
-    if(!isNaN(list[name]?.lvl)) {
+    if (!isNaN(list[name]?.lvl)) {
         let lvl = $("#container__2020 > p:last-of-type > b")[0].innerHTML
-        list[name] = {lvl:lvl, xp:list[name]?.xp, lasttime:list[name]?.lasttime||null}
-        if(list[name].xp == undefined) list[name].xp = null
+
+        list[name] = {
+            lvl: lvl,
+            xp: list[name]?.xp,
+            lasttime: list[name]?.lasttime || null
+        }
+
+        if (list[name].xp === undefined) {
+            list[name].xp = null
+        }
+
         GM_setValue("fishinglist", list)
         console.log(`[FVP] Recorded ${name}'s fishing level. (${lvl})`)
     }
 }
 
 function removeCastButton() {
-    $('#container__2020 > a[href="/water/fishing.phtml"]').css("display","none")
-    $("#container__2020 > br:last-of-type").css("display","none")
+    $('#container__2020 > a[href="/water/fishing.phtml"]').css("display", "none")
+    $("#container__2020 > br:last-of-type").css("display", "none")
     console.log("[FVP] Removed cast again button.")
+}
+
+function levelUp(data, lvlUpMessage) {
+    data.lvl = lvlUpMessage[0].querySelector("b").innerHTML
+    if (FISHING_XP_TRACK) {
+        data.xp = 0
+    }
 }
 
 function handleFishingResult() {
     //if theres a reward, do stuff
-    if($("#container__2020 > div.item-single__2020").length) {
+    if ($("#container__2020 > div.item-single__2020").length) {
         let list = GM_getValue("fishinglist", {})
         let name = getActivePet()
-        let data = list[name] || {lvl:null, xp:null, lasttime:null}
-        if(FISHING_TIME_TRACK) {
+        let data = list[name] || {
+            lvl: null,
+            xp: null,
+            lasttime: null
+        }
+
+        if (FISHING_TIME_TRACK) {
             data.lasttime = new Date().valueOf()
         }
-        if(FISHING_LEVEL_TRACK) {
-            let lvl = Array.from($("#container__2020 > p")).filter((p)=>{return p.innerHTML.includes("Your pet's fishing skill increases to")})
-            //level up occurred, reset xp
-            if(lvl.length) {
-                data.lvl = lvl[0].querySelector("b").innerHTML
-                if(FISHING_XP_TRACK) data.xp = 0
-            }
-            //no level up, add to xp
-            else if(FISHING_XP_TRACK && data.xp != null){
+
+        if (FISHING_LEVEL_TRACK) {
+            let lvlUpMessage = Array.from($("#container__2020 > p")).filter((p) => {
+                return p.innerHTML.includes("Your pet's fishing skill increases to")
+            })
+
+            if (lvlUpMessage.length) {
+                levelUp(data, lvlUpMessage);
+            } else if (FISHING_XP_TRACK && data.xp != null) {
                 data.xp += 100
             }
         }
+
         list[name] = data
         console.log(`[FVP] Fishing results for ${name} recorded.`)
         GM_setValue("fishinglist", list)
     }
 }
 
-function addFishingPetDisplay(cell, name) {
-    let data = GM_getValue("fishinglist", {})[name] || {lvl:null, xp:null, lasttime:null}
-
-    //level display
+function addLevelDisplay(data, cell) {
     let ldiv = document.createElement("div")
     ldiv.classList.add("leveldisplay", "fishingdisplay")
     ldiv.innerHTML = `Lv.${data.lvl || "(?)"}`
     let lhover = document.createElement("div")
     lhover.classList.add("fishingdisplay")
     let chance = getLevelUpChance(data.xp, data.lvl)
-    if(chance == null) lhover.innerHTML = "(?)% chance to lv up"
+    if (chance == null) lhover.innerHTML = "(?)% chance to lv up"
     else lhover.innerHTML = `${getLevelUpChance(data.xp, data.lvl)}% chance to lv up`
-    if(data.xp == null) lhover.innerHTML += `<br>Exp: (?)`
+    if (data.xp == null) lhover.innerHTML += `<br>Exp: (?)`
     else lhover.innerHTML += `<br>Exp: ${data.xp}`
     ldiv.appendChild(lhover)
     cell.appendChild(ldiv)
+}
 
-    //time display
+function addTimeDisplay(data, cell) {
     let tdiv = document.createElement("div")
     tdiv.classList.add("timedisplay", "fishingdisplay", "circular-progress")
     //deals with display w/o a recorded time
-    if(data.lasttime == null) {
+    if (data.lasttime == null) {
         tdiv.innerHTML = `
           <div class="inner-circle fishingdisplay"></div>
           <p class="percentage fishingdisplay">(?)hr</p>
         `
         tdiv.style.background = `#c4c4c4`
-    }
-    else {
+    } else {
         let t = getTimeSinceFished(data.lasttime)
         tdiv.innerHTML = `
           <div class="inner-circle fishingdisplay"></div>
           <p class="percentage fishingdisplay">${t.toFixed(1)}hr</p>
         `
-        tdiv.style.background = `conic-gradient(${getCircleColor(t/26.0)} ${t/26.0*360}deg, #c4c4c4 0deg)`
+        tdiv.style.background = `conic-gradient(${getCircleColor(t / 26.0)} ${t / 26.0 * 360}deg, #c4c4c4 0deg)`
     }
     cell.appendChild(tdiv)
 }
 
+function addFishingPetDisplay(cell, name) {
+    let data = GM_getValue("fishinglist", {})[name] || {
+        lvl: null,
+        xp: null,
+        lasttime: null
+    }
+
+    addLevelDisplay(data, cell);
+    addTimeDisplay(data, cell);
+}
+
 function getCircleColor(p) {
-    if(p < 0.2) return "#e87e72"
-    else if(p < 0.4) return "#e8b972"
-    else if(p < 0.6) return "#ebed77"
-    else if(p < 0.8) return "#c0ed77"
-    else if(p < 1.0) return "#77ed7d"
-    else return "#88f2dd"
+    if (p < 0.2) {
+        return "#e87e72"
+    }
+
+    if (p < 0.4) {
+        return "#e8b972"
+    }
+
+    if (p < 0.6) {
+        return "#ebed77"
+    }
+
+    if (p < 0.8) {
+        return "#c0ed77"
+    }
+
+    if (p < 1.0) {
+        return "#77ed7d"
+    }
+
+    return "#88f2dd"
 }
 
 function getTimeSinceFished(tfish) {
-    if(tfish == null) return null
+    if (tfish == null) {
+        return null
+    }
+
     let t = new Date().valueOf() - tfish
-    return Math.min(Math.floor((t/(1000.0*60.0*60.0))*10)/10.0, 26.0) //# of hrs w/ 1 decimal place, rounded down
+    return Math.min(Math.floor((t / (1000.0 * 60.0 * 60.0)) * 10) / 10.0, 26.0) //# of hrs w/ 1 decimal place, rounded down
 }
 
 function getLevelUpChance(exp, lvl) {
     //if we dont have the data for either, our chance is unknown
-    if(exp == null || lvl == null) return null
+    if (exp == null || lvl == null) {
+        return null
+    }
+
     //if (1-100) <= p, we win. (eg if p = 5, we have a 5% chance)
-    let p = Math.floor(((exp+100)-lvl-20) / 1.8)
+    let p = Math.floor(((exp + 100) - lvl - 20) / 1.8)
     return Math.max(p, 0.0).toFixed(1) //can't have negative percentage, rounds to 1 decimal
 }
 
@@ -469,19 +589,30 @@ function getLevelUpChance(exp, lvl) {
 //========
 // getters
 //========
+function petsSortedAlphabetically(petInfo) {
+    return Object.keys(petInfo).sort().reduce((obj, key) => {
+        obj[key] = petInfo[key]
+        return obj
+    }, {});
+}
 
 function getUsername() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(3) a.text-muted")[0].innerHTML
-    else return $("#header > table > tbody > tr:nth-child(1) > td.user.medText a[href]")[0].innerHTML
+    if (isBeta) {
+        return $("#navprofiledropdown__2020 > div:nth-child(3) a.text-muted")[0].innerHTML
+    }
+
+    return $("#header > table > tbody > tr:nth-child(1) > td.user.medText a[href]")[0].innerHTML
 }
 
 function getPets(doc) {
     let elements = Array.from(doc.querySelectorAll(".hp-carousel-pet"))
     let petNames = elements.map(e => e.getAttribute("data-name"))
-    petNames = petNames.filter((n, index) => petNames.indexOf(n) == index)
+    petNames = petNames.filter((n, index) => petNames.indexOf(n) === index)
+
     let petInfo = {}
-    for(const name of petNames) {
-        let e = elements.find(e => e.getAttribute("data-name") == name)
+
+    petNames.forEach(name => {
+        let e = elements.find(e => e.getAttribute("data-name") === name)
         let img = {noBG: e.style.backgroundImage.replace('"', "").slice(5, -2), withBG: e.getAttribute("data-petimage")}
         let species = e.getAttribute("data-species")
         let color = e.getAttribute("data-color")
@@ -491,42 +622,51 @@ function getPets(doc) {
         let hunger = e.getAttribute("data-hunger")
         let mood = e.getAttribute("data-mood")
         let p2 = getPetpet(e)
-        petInfo[name] = {name:name, species:species, color:color, img:img, gender:gender, hp:hp, level:level, hunger:hunger, mood:mood, p2:p2}
-    }
-    if(petInfo == {}) return null
-    //pet list should be in alphabetical order
-    let sorted = Object.keys(petInfo).sort().reduce((obj, key) => {
-        obj[key] = petInfo[key]
-        return obj
-    }, {})
-    return sorted
+        petInfo[name] = {
+            name: name,
+            species: species,
+            color: color,
+            img: img,
+            gender: gender,
+            hp: hp,
+            level: level,
+            hunger: hunger,
+            mood: mood,
+            p2: p2
+        }
+    })
+
+    if (petInfo === {}) return null
+    return petsSortedAlphabetically(petInfo)
 }
 
 function getPetpet(e) {
     let petpet = null
-    if(e.hasAttribute("data-petpet")) {
+    if (e.hasAttribute("data-petpet")) {
         let p = e.getAttribute("data-petpet").split(" ") //no, name, the, fir
-        let i = p.lastIndexOf("the") //no petpets have "the" in their name as its own word so this works
         let name = p.slice(0, p.lastIndexOf("the")).join(" ")
-        let species = p.slice(p.lastIndexOf("the")+1, p.length).join(" ")
+        let species = p.slice(p.lastIndexOf("the") + 1, p.length).join(" ")
         let img = e.getAttribute("data-petpetimg")
         let p3 = null
-        if(e.hasAttribute("data-p3")) p3 = {name:e.getAttribute("data-p3"), img:e.getAttribute("data-p3img")}
-        petpet = {name:name, species:species, img:img, p3:p3}
+        if (e.hasAttribute("data-p3")) p3 = {name: e.getAttribute("data-p3"), img: e.getAttribute("data-p3img")}
+        petpet = {name: name, species: species, img: img, p3: p3}
     }
     return petpet
 }
 
 function getActivePet() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(4) > a")[0].innerHTML
-    else return $("#content > table > tbody > tr > td.sidebar > div:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > b")[0].innerHTML
+    if (isBeta) {
+        return $("#navprofiledropdown__2020 > div:nth-child(4) > a")[0].innerHTML
+    }
+
+    return $("#content > table > tbody > tr > td.sidebar > div:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > b")[0].innerHTML
 }
 
 
 function getButtonLocation() {
-    if(isBeta) var e = $(".navsub-left__2020")
+    if (isBeta) var e = $(".navsub-left__2020")
     else e = $(".activePet")
-    if(e.length) return e[0]
+    if (e.length) return e[0]
     else return null
 }
 
@@ -540,20 +680,19 @@ function addCSS() {
     var button
     var text
 
-    if(isBeta) {
-       theme = $(".nav-profile-dropdown__2020").css("background-color")
-       button = $(".nav-profile-dropdown-text").css("color")
-       text = $(".nav-profile-dropdown-text a.text-muted").css("color")
+    if (isBeta) {
+        theme = $(".nav-profile-dropdown__2020").css("background-color")
+        button = $(".nav-profile-dropdown-text").css("color")
+        text = $(".nav-profile-dropdown-text a.text-muted").css("color")
 
-       document.head.appendChild(document.createElement("style")).innerHTML = `
+        document.head.appendChild(document.createElement("style")).innerHTML = `
         .openmenubutton {
             height: 25px;
             width: 30px;
 
         }
         `
-    }
-    else {
+    } else {
         theme = $("#content > table > tbody > tr > td.sidebar > div:nth-child(1) > table > tbody > tr:nth-child(1) > td").css("background-color")
         button = "gray";
         text = "black";
