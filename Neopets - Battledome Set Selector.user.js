@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.8.3
+// @version      2.8.4
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -1165,12 +1165,14 @@ function isObelisk() {
 function handleRewards() {
     const lootObs = new MutationObserver(mutations => {
         lootObs.disconnect()
-        let rewardCount = countRewards() //counts and records rewards earned
-        if(LOOT_DISPLAY) addLootBars() //adds display for prize tally
-        if(rewardCount == 0 && LOOT_DISPLAY) addEmptyDisplay() //shows a unique display for earning nothing
-        if(hitItemLimit()) highlightItemLimit() //highlights the win div if you've earned max rewards
-        if(LOOT_DISPLAY) addRewardList() //adds the list of rewards
-        addObeliskContribution() //adds obelisk contribution
+        if($("button.end_ack.nextwave").length == 0) { //only handles rewards on the final wave, thanks to robbie for this one
+            let rewardCount = countRewards() //counts and records rewards earned
+            if(LOOT_DISPLAY) addLootBars() //adds display for prize tally
+            if(rewardCount == 0 && LOOT_DISPLAY) addEmptyDisplay() //shows a unique display for earning nothing
+            if(hitItemLimit()) highlightItemLimit() //highlights the win div if you've earned max rewards
+            if(LOOT_DISPLAY) addRewardList() //adds the list of rewards
+            addObeliskContribution() //adds obelisk contribution
+        }
     })
     lootObs.observe($("#arenacontainer #bdPopupGeneric-winnar #bd_rewards")[0], {childList: true, subtree: true})
 }
