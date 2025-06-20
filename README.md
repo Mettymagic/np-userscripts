@@ -1,7 +1,6 @@
 <span style="font-family: 'Comic Sans MS', 'Comic Sans', Arial">
 
 ## ✨ MettyNeo Userscripts ✨
-
 <p>Sometimes small things on Neopets annoy me so I write userscripts to make things a bit easier and share them to the world to hopefully make everyone's life a bit easier.</p>
 
 ___

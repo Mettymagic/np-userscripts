@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Inventory Plus <MettyNeo>
-// @version      1.1
+// @version      1.2
 // @description  Improves the Inventory page by allowing multiple actions to be performed without a page refresh and saves selected options for items.
 // @author       Metamagic
 // @match        *://*.neopets.com/inventory.phtml*
@@ -44,7 +44,10 @@
     //watches for item description popup
     const descObs = new MutationObserver((mutations) => {
         if(REMEMBER_SELECTION) {
-            if($("#iteminfo_select_action").find("option:selected").val() == "Choose an Action") setRememberedSelection()
+            let selection = $("#iteminfo_select_action").find("option:selected")[0]
+            if(selection) {
+                if(selection.innerHTML == "Choose an Action") setRememberedSelection()
+            }
             rememberSelections()
         }
     })
@@ -128,6 +131,7 @@
     }
 
     function setRememberedSelection() {
+        console.log("[Inv+] Attempting to set")
         let itemname = document.getElementById("invItemName").innerHTML
         let memory = GM_getValue("invselect", {})[itemname]
         if(memory != undefined) {
