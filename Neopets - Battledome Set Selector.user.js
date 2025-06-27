@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.8.4
+// @version      2.9
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -52,7 +52,7 @@ const gray = [99,99,99]
 const colormap = [red,blue,green,magenta,yellow]
 
 const nullset = {set:null, name:null, default:null}
-const nullautofill = {turn1:null, turn2:null, default:null}
+const nullautofill = {turnfill:[null,null,null,null], default:null}
 
 const ROW_COLORS = {
     1:"#a9bad4",
@@ -78,6 +78,10 @@ let difficulty = null //tracked for obelisk point calculation
 let obeliskContribution = 0
 let isTVW = false
 //runs on page load
+if (GM_getValue("compatcheck", true)) {
+    updateDataCompat()
+    GM_setValue("compatcheck", false)
+}
 window.addEventListener("DOMContentLoaded", function() {
     //arena page (battle)
     if(window.location.href.includes("/dome/arena.phtml")) {
@@ -271,17 +275,8 @@ function populateBar(bar) {
         let defc = document.createElement("div")
         defc.style.textAlign = "right"
         defc.style.marginTop = "2px"
-        switch(set.default) {
-            case "1":
-                defc.innerHTML = "<b>T1</b>"
-                break
-            case "2":
-                defc.innerHTML = "<b>T2</b>"
-                break
-            case "3":
-                defc.innerHTML = "<b>Default</b>"
-                break
-        }
+        if(set.default < 0) defc.innerHTML = "<b>Default</b>"
+        else if(set.default > 0) defc.innerHTML = `<b>T${set.default}</b>`
 
         options.appendChild(save)
         options.appendChild(opt)
@@ -490,33 +485,33 @@ function createSelect(i, set) {
 
     let defselect = document.createElement("SELECT")
     defselect.id = "setautofill"
-    //options
-    let o1=document.createElement("OPTION"), o2=document.createElement("OPTION"), o3=document.createElement("OPTION"), o4=document.createElement("OPTION")
+    // never
+    let o1 = document.createElement("OPTION")
     o1.value = null
     o1.label = "Never"
     o1.innerHTML = "Never"
-    o2.value = 1
-    o2.label = "First Turn"
-    o2.innerHTML = "First Turn"
-    if(afset.turn1 != null && afset.turn1 != i) o2.disabled = true
-    o3.value = 2
-    o3.label = "Second Turn"
-    o3.innerHTML = "Second Turn"
-    if(afset.turn2 != null && afset.turn2 != i) o3.disabled = true
-    o4.value = 3
+    defselect.appendChild(o1)
+    // numbered turns
+    let j = 0
+    while(j < afset.turnfill.length) {
+        j += 1
+        let o = document.createElement("OPTION")
+        o.label = `Turn ${j}`
+        o.innerHTML = o.label
+        o.value = j
+        defselect.appendChild(o)
+    }
+    // default
+    let o4 = document.createElement("OPTION")
+    o4.value = -1
     o4.label = "Default"
     o4.innerHTML = "Default"
     if(afset.default != null && afset.default != i) o4.disabled = true
-
-    //adds options
-    defselect.appendChild(o1)
-    defselect.appendChild(o2)
-    defselect.appendChild(o3)
     defselect.appendChild(o4)
 
     //sets default value
     defselect.value = set.default
-    console.log(defselect)
+    //console.log(defselect)
     return defselect
 }
 
@@ -624,10 +619,16 @@ function pressSkipButton() {
 function setDefault() {
     let round = getRoundCount()
     let autofill = getData("bdautofill")
-
-    if(round == 1 && autofill.turn1 != null) applyDefaultSet(autofill.turn1)
-    else if(round == 2 && autofill.turn2 != null) applyDefaultSet(autofill.turn2)
-    else if(autofill.default != null) applyDefaultSet(autofill.default)
+    let applied = false
+    for(let i = 0; i < autofill.turnfill.length; i++) {
+        let set = autofill.turnfill[i]
+        if(round == i+1 && set != null) {
+            applyDefaultSet(set)
+            applied = true
+            break
+        }
+    }
+    if(!applied && autofill.default != null) applyDefaultSet(autofill.default)
 }
 
 function applyDefaultSet(i) {
@@ -1054,33 +1055,31 @@ function deleteSet(i) {
 }
 
 //updates set at index i
-function updateStoredSet(i, newset, updateAutofill=-1) {
+function updateStoredSet(i, newset, updateAutofill = false) {
     //updates stored set
     let sets = getData("bdsets")
     sets[i] = newset
     setData("bdsets", sets)
-    //updates autofill
-    if(updateAutofill != -1) {
-        let autofill = getData("bdautofill")
-        //remove index from autofill
-        if(autofill.turn1 == i) autofill.turn1 = null
-        else if (autofill.turn2 == i) autofill.turn2 = null
-        else if (autofill.default == i) autofill.default = null
-        //add to autofill
-        switch(newset.default) {
-            case "1":
-                autofill.turn1 = i
-                break;
-            case "2":
-                autofill.turn2 = i
-                break;
-            case "3":
-                autofill.default = i
-                break;
+
+    //updates autofill settings
+    if(updateAutofill) {
+        let af = getData("bdautofill", nullautofill)
+        let val = newset.default
+        //can only have 1 autofill at a time, remove others
+        if(af.default == i) af.default = null
+        else {
+            let tindex = af.turnfill.indexOf(i)
+            if(tindex != -1) af.turnfill[tindex] = null
         }
-        //saves new autofill
-        setData("bdautofill", autofill)
+        //sets new autofill
+        let turn = newset.default
+        if(turn != null) {
+            if(turn < 0) af.default = i
+            else af.turnfill[turn-1] = i
+        }
+        setData("bdautofill", af)
     }
+    console.log(`[BD+] Stored set ${i} updated`)
     updateBar()
 }
 
@@ -1420,7 +1419,7 @@ function clone(data) {
 }
 
 function getDate() {
-    return new Date().toLocaleString("en-US", {timeZone: "America/Los_Angeles"}).slice(0, 10).replace(",","")
+    return new Date().toLocaleString("en-US", {timeZone: "PST"}).slice(0, 10).replace(",","")
 }
 
 function getItemURL(node, ability=false) {
@@ -1444,6 +1443,44 @@ function getHex(color) {
     return hex
 }
 
+//==============
+// compatibility
+//==============
+
+function updateDataCompat() {
+    let sets = GM_getValue("bdsets", nullset)
+    let af = GM_getValue("bdautofill", nullautofill)
+    let update = 0
+    //update sets
+    if (sets != nullset) {
+        for (let set of sets) {
+            if(set.default == 3) set.default = -1 //update "default" setting value
+            update += 1
+        }
+    }
+    if(update > 0) {
+        GM_setValue("bdsets", sets)
+        console.log(`[BD+] ${update} compatibility updates applied to "bdsets"`)
+        update = 0
+    }
+    //update autofill data
+    if(af != nullautofill) {
+        var newaf = clone(nullautofill)
+        if(af.turn1 != null) {
+            newaf.turnfill[0] = af.turn1
+            update += 1
+        }
+        if(af.turn2 != null) {
+            newaf.turnfill[1] = af.turn2
+            update += 1
+        }
+    }
+    if(update > 0) {
+        GM_setValue("bdautofill", newaf)
+        console.log(`[BD+] ${update} compatibility updates applied to "bdautofill"`)
+        update = 0
+    }
+}
 
 //==========
 // style css
