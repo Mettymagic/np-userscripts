@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2.9
+// @version      2.9.1
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @grant GM_setValue
@@ -77,11 +77,14 @@ if(window.location.href.includes("/dome/index.phtml") || window.location.href ==
 let difficulty = null //tracked for obelisk point calculation
 let obeliskContribution = 0
 let isTVW = false
-//runs on page load
-if (GM_getValue("compatcheck", true)) {
-    updateDataCompat()
-    GM_setValue("compatcheck", false)
+
+//migration
+let bdaf = GM_getValue("bdautofill", false)
+if (bdaf != false) { // if we have bdautofill data but no turnfill field, update it
+    if(!GM_getValue("bdautofill").turnfill) updateDataCompat()
 }
+else GM_setValue("bdautofill", clone(nullautofill)) // otherwise set new default
+//runs on page load
 window.addEventListener("DOMContentLoaded", function() {
     //arena page (battle)
     if(window.location.href.includes("/dome/arena.phtml")) {
