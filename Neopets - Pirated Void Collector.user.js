@@ -9,8 +9,8 @@
 // @connect      jellyneo.net
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_xmlhttpRequest
-// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
-// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/blob/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/blob/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // ==/UserScript==
 
 const COLLECT_DELAY = 500 // in ms, turn up if you're getting errors
@@ -206,5 +206,4 @@ function addTVWCSS() {
             transform: translate(-50%, -50%);
         }
     `
-
 }
