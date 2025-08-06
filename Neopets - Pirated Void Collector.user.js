@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-06.0
+// @version      2025-08-06.1
 // @description  Click to collect all void essences
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
 // @match        *://neopets.com/tvw/
-// @require      https://images.neopets.com/plots/tvw/activities/void-collection/vc.js
 // @connect      jellyneo.net
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_xmlhttpRequest
@@ -172,6 +171,9 @@ function addTVWCSS() {
     document.head.appendChild(document.createElement("style")).innerHTML = `
         .mn-vacuum > .vc-progress {
             overflow: visible !important;
+        }
+        .mn-vacuum > .vc-progress > .vc-progress-bar {
+            border-radius: 20px;
         }
         .mn-working > .vc-essence {
             background: url(${VAC_ICON}) !important;
