@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-05
+// @version      2025-08-06.0
 // @description  Click to collect all void essences
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
@@ -13,6 +13,7 @@
 // @updateURL    https://github.com/Mettymagic/np-userscripts/blob/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // ==/UserScript==
 
+const COLLECT_DELAY = 500 // in ms, turn up if you're getting errors
 const VAC_ICON = "https://cdn.imgchest.com/files/y8xcn23qr24.gif"
 const JN_LINK = "https://www.jellyneo.net/?go=the_void_within&id=essence_collection" // sorry Dave from Jellyneo
 
@@ -31,7 +32,7 @@ const DATE_REGEX = /.*\(.* (.*)\).*/m
 
 function collectEssence() {
     let vac = $(".mn-vacuum")[0]
-    if(vac.classList.contains("mn-working")) return
+    if(vac?.classList?.contains("mn-working")) return
 
     console.log("[PVA] Requesting locations from Jellyneo")
     vac.classList.add("mn-working")
@@ -52,19 +53,34 @@ function collectEssence() {
 }
 
 async function visitLocations(locs) {
-    for(let loc of locs) {
-        console.log("[PVA] Visiting " + loc.href)
+    let j = 0
+    while(j < locs.length) {
+        let loc = locs[j].href
+        console.log("[PVA] Visiting " + loc)
 
-        let essences = await visit(loc.href)
+        let essences = await visit(loc)
         if(essences == null) {
-            console.log("[PVA] No essences found at " + loc.href)
+            console.log(`[PVA] No essences found at ${loc}.`)
         }
         else {
-            for(let e of essences) await sendForm(e)
+            console.log(`[PVA] ${essences.length} essence${essences.length>1?"s":""} found at ${loc}, collecting...`)
+            let i = 0
+            while(i < essences.length) {
+                await sendForm(essences[i])
+                i += 1
+                if(i < essences.length || j < locs.length-1) {
+                    console.log(`[PVA] Waiting ${COLLECT_DELAY}ms...`)
+                    await new Promise(r => setTimeout(r, COLLECT_DELAY))
+                }
+                /*console.log("Temp Manual Abort")
+                $(".mn-vacuum")[0].classList.remove("mn-working")
+                $(".mn-vacuum")[0].classList.remove("mn-vacuum")
+                return*/
+            }
         }
+        j += 1
     }
-    $(".mn-vacuum")[0].classList.remove("mn-working")
-    $(".mn-vacuum")[0].classList.remove("mn-vacuum")
+    endCollection()
 }
 
 const ESSENCE_REGEX = /.*placeEssenceOnMap\((\[.*\])\).*/s
@@ -86,7 +102,7 @@ function sendForm(ess) {
 
     for(let key of Object.keys(ess)) formData.append(key, ess[key])
     formData.append("_ref_ck", getCK())
-    console.log("[PVA] Attempting to collect essence...")
+    console.log(`[PVA] Sending essence collection form... (ID:${ess.id})`)
 
     return new Promise((resolve, reject) => {
         fetch('/np-templates/ajax/plots/tvw/void-collection/collect_void.php', {
@@ -95,24 +111,40 @@ function sendForm(ess) {
             body: formData,
         })
         .then(function (response) {
-            if (response.status !== 200) console.log("[PVA] Error collecting essence!")
+            if (response.status !== 200) {
+                console.error(`[PVA] Form response returned error! Response included below.`)
+                console.error(response)
+                resolve(false)
+            }
             response.json().then(function (data) {
                 if (data.success) {
                     addProgress()
                     resolve(true)
                 }
                 else {
-                    console.log(`[PVA] Failed to collect essence!`)
+                    console.error(`[PVA] Form response returned failure flag! Data included below.`)
+                    console.error(data)
                     resolve(false)
                 }
             })
         })
         .catch(function (err) {
-            console.log("Fetch Error :-S", err)
+            console.error("[PVA] Fetch Error :-S", err)
             resolve(false)
         });
     })
+}
 
+function endCollection() {
+    $(".mn-vacuum")[0].classList.remove("mn-working")
+    let amt = 10 - parseInt($(".mn-vacuum .vc-progress-amt")[0].innerHTML.split("/")[0])
+    if(amt > 0) {
+        alert(`Failed to collect ${amt} essences, try collecting again.\n\nThis can happen because of site lag - increasing the COLLECT_DELAY value (line 16) can help.`)
+    }
+    else {
+        //alert("Successfully collected every essence!")
+        $(".mn-vacuum")[0].classList.remove("mn-vacuum")
+    }
 }
 
 function addProgress() {
