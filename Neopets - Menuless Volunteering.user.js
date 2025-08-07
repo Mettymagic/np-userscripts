@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Menuless Volunteering <MettyNeo>
-// @version      2025-08-07.0
+// @version      2025-08-07.1
 // @description  Collects rewards upon page visit and lets you assign every shift at once
 // @author       Mettymagic
 // @match        *://www.neopets.com/hospital/volunteer.phtml*
@@ -10,6 +10,9 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
+
+// note that this script contains a lot of slightly modified TNT code - no need to reinvent the wheel or whatever
+// thanks Dinah C. https://images.neopets.com/hospital/volunteer.js
 
 const COLLECT_DELAY = 1000
 const FUN_ALLOWED = true // disable if you're lame
@@ -42,7 +45,8 @@ function modifyUI() {
 
 function modifyDialogue() {
     $("#container__2020 > div.volunteer-centre.tvw > div.h5-dialogue.dialogue-lg > p:nth-child(2)")[0].innerHTML = `
-        Welcome to the Neopian Hospital volunteer team! Apologies for the mess, we're currently overhauling the place to <i>hopefully</i> make things a bit more efficient. (Thanks Metty!)
+        Welcome to the Neopian Hospital volunteer team! Apologies for the mess, we're currently overhauling the place to <i>hopefully</i> make things more efficient.
+        I guess we're going to have to live with this ${FUN_ALLOWED?"UGLY-ASS":""} panel until the ${FUN_ALLOWED?"STUPID BITCH":"Neopian"} in charge fixes it.
     `
 }
 
@@ -86,100 +90,6 @@ function getSummary() {
     return div
 }
 
-//============
-// Exclude pet
-//============
-
-function setExclude() {
-    let open = getOpen()
-    console.trace()
-
-    if(open == null) errorAlert("There needs to be an open shift to exclude a pet!<br><br><i>(Weird page limitation, just complete or cancel a shift. Sorry! ~MM)</i>")
-    else showPets(open[0])
-}
-
-function setExcluded(pet) {
-    if(pet) {
-        GM_setValue("excludedpet", pet)
-        document.getElementById("VolunteerPetList").classList.add("hide")
-        document.getElementById("VolunteerFightInfo").classList.remove("hide")
-    }
-}
-
-function showPets(id) {
-	var pets = document.getElementById("VolunteerSelectPet");
-	if (pets.classList.contains("hide")) {
-		// Close any open popup
-		if (document.querySelector("div.togglePopup__2020[style*='display: block']")) togglePopup__2020();
-
-		// Show Loading Screen
-		pets.classList.remove("hide");
-		document.getElementById("VolunteerFightInfo").classList.add("hide");
-
-		let formData = new FormData();
-		formData.append("_ref_ck", getCK());
-		formData.append("fight_id", id);
-
-		document.getElementById("VolunteerErrMsg").innerHTML = "";
-
-		fetch("/np-templates/ajax/plots/hospital/get-pets.php", {
-		    method: "POST",
-		    headers: {"x-requested-with": "XMLHttpRequest"},
-			body: formData,
-		})
-		    .then(
-		        function (response) {
-		            if (response.status !== 200) {
-		                console.log("Error setting state!");
-		            }
-
-					response.json().then(function (data) {
-						if (data.success) {
-							let petList = data.pets;
-							petList.forEach((pet) => {
-								addPetElement(pet);
-							});
-							if (document.getElementById("VolunteerPetLoading")) {
-								document.getElementById("VolunteerPetLoading").remove();
-							}
-							document.getElementById("VolunteerPetList").classList.remove("hide");
-                            let button = $("#VolunteerJoinButton")
-                            button[0].removeAttribute("onclick")
-                            button.click((event)=>{ setExcluded(event.target.getAttribute("data-pet")) })
-                            button[0].innerHTML = "Exclude Me!"
-						}
-	                    if (data.error) {
-							document.getElementById("VolunteerErrMsg").innerHTML = data.errMsg
-							togglePopup__2020(document.getElementById("VolunteerErrorPopup"))
-	                    }
-	                });
-		        }
-		    )
-		    .catch(function (err) {
-		        console.log("Fetch Error :-S", err);
-		    });
-	}
-}
-
-function addPetElement(pet) {
-	var samplePet = document.getElementById("VolunteerPet")
-
-	var newPet = samplePet.cloneNode(true)
-    //newPet.removeAttribute("onclick")
-    //newPet.removeAttribute("onkeyup")
-	newPet.removeAttribute("id")
-    newPet.querySelector(".vc-tooltip-icon").remove()
-
-	let petImg = newPet.querySelector(".vc-image img")
-	petImg.src = pet.image;
-	petImg.alt = pet.name;
-
-	newPet.querySelector(".vc-name").innerHTML = pet.name;
-
-	newPet.setAttribute("data-petname", pet.name);
-	document.getElementById("VolunteerPetList").appendChild(newPet);
-}
-
 //==================
 // Completing shifts
 //==================
@@ -202,7 +112,7 @@ async function completeShifts() {
         let err = 0
         let status = $("#mv-status > span")[0]
         while(arr.length > 0) {
-            console.log(`[MV] ${err>0?"Re-a":"A"}ttempting to collect shift ${numCollected}/${num}...`)
+            console.log(`[MV] ${err>0?"Re-a":"A"}ttempting to collect shift ${numCollected+1}/${num}...`)
             let success = await collectShift(arr[0])
             if(success) {
                 numCollected += 1
@@ -218,7 +128,7 @@ async function completeShifts() {
                     err = 0
                 }
             }
-            status.innerHTML = `(${numCollected}/${num}${err?`, ${err}/${MAX_RETRIES+1} Fails`:""})`
+            status.innerHTML = `(${numCollected}/${num}${err?`, ${err}/${MAX_RETRIES} Fails`:""})`
 
             if(arr.length > 0) {
                 console.log(`[MV] Waiting ${COLLECT_DELAY}ms...`)
@@ -298,13 +208,171 @@ function addReward(data) {
     if (data.avatarNotice) cAvatar.innerHTML += "<p>" + data.avatarMsg + "</p>" + data.avatarNotice;
 }
 
-// returns buttons
 function getCompleted(i=null) {
     let list = Array.from($("#VolunteerFightInfo .vc-fights > .vc-fight.finished button")).map((e)=>{return e.getAttribute("data-id")})
     if(list.length == 0) return null
     else if (Number.isInteger(i) && i < list.length && i >= 0) return list[i]
     else return list
 }
+
+//===============
+// Joining shifts
+//===============
+
+//name
+let pets = []
+
+//also fuck code reuse here
+async function assignShifts() {
+    let arr = getOpen()
+    if(arr == null) errorAlert("There aren't any open shifts to assign!")
+    else {
+        $("#mv-panel")[0].classList.add("loading")
+        $("#mv-status")[0].innerHTML = `Getting available pets...`
+        await getWorkablePets(arr[0])
+        if(pets.length == 0) {
+            $("#mv-panel")[0].classList.remove("loading")
+            errorAlert("You don't have any available pets!<br>(Take care of your dang creatures!!!)")
+            return
+        }
+        let working = shuffledList(pets).slice(0, arr.length)
+        let emptyShifts = arr.length - working.length
+        if(emptyShifts > 0) {
+            arr = arr.slice(emptyShifts)
+            console.log(`[MV] Not enough available pets, leaving first ${emptyShifts} shifts empty.`)
+        }
+        // main loop
+        let i = 0
+        let err = 0
+        $("#mv-status")[0].innerHTML = `Assigning shifts... <span>(0/${arr.length})</span>`
+        let status = $("#mv-status > span")[0]
+        while(i < arr.length) {
+            console.log(`[MV] ${err>0?"Re-a":"A"}ttempting to assign ${working[i]} to shift ${i+1}/${arr.length}...`)
+            let success = await joinShift(arr[i], working[i])
+
+            if(success) {
+                i += 1
+                console.log(`[MV] Shift ${i}/${arr.length} collected successfully.`)
+            }
+            else {
+                err += 1
+                if(err > MAX_RETRIES) {
+                    console.error(`[MV] Max retries reached, skipping shift.`)
+                    i += 1
+                    num -= 1
+                    err = 0
+                }
+            }
+
+            status.innerHTML = `(${i}/${arr.length}${err?`, ${err}/${MAX_RETRIES} Fails`:""})`
+
+            if(i < arr.length) {
+                console.log(`[MV] Waiting ${COLLECT_DELAY}ms...`)
+                await new Promise(r => setTimeout(r, COLLECT_DELAY))
+            }
+        }
+        $("#mv-panel")[0].classList.remove("loading")
+        alert("Volunteer assignment completed! See 'ya soon!")
+    }
+}
+
+function joinShift(id, pet) {
+    return new Promise((resolve, reject) => {
+        let formData = new FormData()
+        formData.append("_ref_ck", getCK())
+        formData.append("fight_id", id)
+        formData.append("pet_name", pet)
+
+        fetch("/np-templates/ajax/plots/hospital/volunteer-join.php", {
+            method: "POST",
+            headers: {"x-requested-with": "XMLHttpRequest"},
+            body: formData,
+        })
+            .then(
+            function (response) {
+                if (response.status !== 200) {
+                    console.error("[MV] Response returned error!")
+                    console.error(response)
+                    resolve(false)
+                }
+
+                response.json().then(function (data) {
+                    if (data.success) {
+                        setFightInService(id, data);
+                        showFights()
+                        let clock = new vcClock((data.time / 3600), 0, 0)
+                        intervals["fight"+id+"Clock"] = setInterval(function(){clock.tick("fight",id)}, 1000)
+                        resolve(true)
+                    }
+                    if (data.error) {
+                        console.error("[MV] Data returned error!")
+                        console.error(data)
+                        resolve(false)
+                    }
+                });
+            }
+        )
+        .catch(function (err) {
+            console.error("Fetch Error :-S", err)
+            resolve(false)
+        });
+    })
+}
+
+// muh code reusability,..,,.
+function getWorkablePets(id) {
+    return new Promise((resolve, reject) => {
+        let formData = new FormData()
+        formData.append("_ref_ck", getCK())
+        formData.append("fight_id", id)
+
+        fetch("/np-templates/ajax/plots/hospital/get-pets.php", {
+		    method: "POST",
+		    headers: {"x-requested-with": "XMLHttpRequest"},
+			body: formData,
+		})
+		    .then(
+		        function (response) {
+		            if (response.status !== 200) {
+		                console.log("Error setting state!");
+                        resolve(false)
+		            }
+					response.json().then(function (data) {
+						if (data.success) {
+							let petList = data.pets;
+                            let exempt = GM_getValue("excludedpet","")
+							petList.forEach((pet) => {
+                                if(!("disabled" in pet) && pet.name != exempt) pets.push(pet.name)
+							})
+                            resolve(true)
+						}
+	                    if (data.error) {
+							document.getElementById("VolunteerErrMsg").innerHTML = data.errMsg
+							togglePopup__2020(document.getElementById("VolunteerErrorPopup"))
+                            resolve(false)
+	                    }
+	                });
+		        }
+		    )
+		    .catch(function (err) {
+		        console.log("Fetch Error :-S", err);
+                resolve(false)
+		    });
+    })
+}
+
+// Randomize array in-place using Durstenfeld shuffle algorithm  https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
+function shuffledList(array) {
+    let a = [...array]
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    return a
+}
+
 function getOpen(i=null) {
     let list = Array.from($("#VolunteerFightInfo .vc-fights > .vc-fight.open button")).map(getShiftID)
     if(list.length == 0) return null
@@ -317,55 +385,97 @@ function getShiftID(button) {
     return ID_REGEX.exec(button.id)?.[1]
 }
 
-//===============
-// Joining shifts
-//===============
+//============
+// Exclude pet
+//============
 
-let pets = []
-function assignShifts() {
-    alert("Still haven't done this part yet, sorry! ~Metty")
+function setExclude() {
+    let open = getOpen()
+    console.trace()
+
+    if(open == null) errorAlert("There needs to be an open shift to exclude a pet!<br><br><i>(Weird page limitation, just complete or cancel a shift. Sorry! ~MM)</i>")
+    else openExclude(open[0])
 }
 
-function joinShift(id, pet) {
-    let formData = new FormData()
-    formData.append("_ref_ck", getCK())
-    formData.append("fight_id", id)
-    formData.append("pet_name", pet)
-
-    fetch("/np-templates/ajax/plots/hospital/volunteer-join.php", {
-	    method: "POST",
-	    headers: {"x-requested-with": "XMLHttpRequest"},
-		body: formData,
-	})
-	    .then(
-	        function (response) {
-	            if (response.status !== 200) {
-	                console.log("Error setting state!");
-	            }
-
-				response.json().then(function (data) {
-					if (data.success) {
-						togglePopup__2020(document.getElementById("VolunteerJoinedPopup"));
-						setFightInService(fight, data);
-						showFights();
-						let clock = new vcClock((data.time / 3600), 0, 0);
-						intervals["fight"+fight+"Clock"] = setInterval(function() {
-							clock.tick("fight",fight);
-						}, 1000);
-					}
-                    if (data.error) {
-						document.getElementById("VolunteerErrMsg").innerHTML = data.errMsg;
-						togglePopup__2020(document.getElementById("VolunteerErrorPopup"));
-                    }
-					e.removeAttribute("disabled");
-                });
-	        }
-	    )
-	    .catch(function (err) {
-	        console.log("Fetch Error :-S", err);
-	    });
+function setExcluded(pet) {
+    if(pet) {
+        GM_setValue("excludedpet", pet)
+        document.getElementById("VolunteerPetList").classList.add("hide")
+        document.getElementById("VolunteerFightInfo").classList.remove("hide")
+    }
 }
 
+function openExclude(id) {
+	var pets = document.getElementById("VolunteerSelectPet");
+	if (pets.classList.contains("hide")) {
+		// Close any open popup
+		if (document.querySelector("div.togglePopup__2020[style*='display: block']")) togglePopup__2020();
+
+		// Show Loading Screen
+		pets.classList.remove("hide");
+		document.getElementById("VolunteerFightInfo").classList.add("hide");
+
+		let formData = new FormData();
+		formData.append("_ref_ck", getCK());
+		formData.append("fight_id", id);
+
+		fetch("/np-templates/ajax/plots/hospital/get-pets.php", {
+		    method: "POST",
+		    headers: {"x-requested-with": "XMLHttpRequest"},
+			body: formData,
+		})
+		    .then(
+		        function (response) {
+		            if (response.status !== 200) {
+		                console.log("Error setting state!");
+		            }
+
+					response.json().then(function (data) {
+						if (data.success) {
+							let petList = data.pets;
+							petList.forEach((pet) => {
+								addPetElement(pet);
+							});
+							if (document.getElementById("VolunteerPetLoading")) {
+								document.getElementById("VolunteerPetLoading").remove();
+							}
+							document.getElementById("VolunteerPetList").classList.remove("hide");
+                            let button = $("#VolunteerJoinButton")
+                            button[0].removeAttribute("onclick")
+                            button.click((event)=>{ setExcluded(event.target.getAttribute("data-pet")) })
+                            button[0].innerHTML = "Exclude Me!"
+						}
+	                    if (data.error) {
+							document.getElementById("VolunteerErrMsg").innerHTML = data.errMsg
+							togglePopup__2020(document.getElementById("VolunteerErrorPopup"))
+	                    }
+	                });
+		        }
+		    )
+		    .catch(function (err) {
+		        console.log("Fetch Error :-S", err);
+		    });
+	}
+}
+
+function addPetElement(pet) {
+	var samplePet = document.getElementById("VolunteerPet")
+
+	var newPet = samplePet.cloneNode(true)
+    //newPet.removeAttribute("onclick")
+    //newPet.removeAttribute("onkeyup")
+	newPet.removeAttribute("id")
+    newPet.querySelector(".vc-tooltip-icon").remove()
+
+	let petImg = newPet.querySelector(".vc-image img")
+	petImg.src = pet.image;
+	petImg.alt = pet.name;
+
+	newPet.querySelector(".vc-name").innerHTML = pet.name;
+
+	newPet.setAttribute("data-petname", pet.name);
+	document.getElementById("VolunteerPetList").appendChild(newPet);
+}
 
 function errorAlert(text) {
     let err = document.getElementById("VolunteerErrorPopup")
