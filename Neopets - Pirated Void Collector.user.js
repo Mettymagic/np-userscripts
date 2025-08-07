@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-06.1
-// @description  Click to collect all void essences
+// @version      2025-08-07.0
+// @description  Click to collect all void essences using your totally-legitimately-obtained Void Attractor!
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
 // @match        *://neopets.com/tvw/
@@ -12,7 +12,7 @@
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // ==/UserScript==
 
-const COLLECT_DELAY = 500 // in ms, turn up if you're getting errors
+const COLLECT_DELAY = 1000 // in ms, turn up if you're getting errors
 const VAC_ICON = "https://cdn.imgchest.com/files/y8xcn23qr24.gif"
 const JN_LINK = "https://www.jellyneo.net/?go=the_void_within&id=essence_collection" // sorry Dave from Jellyneo
 
@@ -82,15 +82,22 @@ async function visitLocations(locs) {
     endCollection()
 }
 
-const ESSENCE_REGEX = /.*placeEssenceOnMap\((\[.*\])\).*/s
+const ESSENCE_REGEX = /.*placeEssenceOnMap\((\[.*?\])\).*/s
 function visit(url) {
     return new Promise((resolve, reject) => {
         $.get(url, function(data) {
             let doc = new DOMParser().parseFromString(data, "text/html")
-            let map = doc.querySelector("#container__2020 > div.map_container")
-            let reg = ESSENCE_REGEX.exec(map.innerHTML)
-            if(reg == null) resolve(null)
-            else resolve(JSON.parse(reg[1]))
+            let map = doc.querySelector("*:has(> #animation_container)")
+            if(map == null) {
+                console.error("[PVA] Couldn't find map!")
+                resolve(null)
+            }
+            else {
+                let reg = ESSENCE_REGEX.exec(map.innerHTML)
+                console.log(reg[1])
+                if(reg == null) resolve(null)
+                else resolve(JSON.parse(reg[1]))
+            }
         })
     })
 }
