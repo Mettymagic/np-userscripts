@@ -5,8 +5,8 @@
 // @author       Mettymagic
 // @match        *://www.neopets.com/hospital/volunteer.phtml*
 // @icon         https://i.imgur.com/RnuqLRm.png
-// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/
-// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/
+// @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Menuless%20Volunteering.user.js
+// @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Menuless%20Volunteering.user.js
 // @grant        GM_getValue
 // @grant        GM_setValue
 // ==/UserScript==
