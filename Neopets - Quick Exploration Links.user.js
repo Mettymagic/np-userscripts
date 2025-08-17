@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Neopets - Quick Exploration Links <MettyNeo>
-// @version      2025-08-06.0
+// @version      2025-08-17.0
 // @description  Adds some quicklinks under the beta "Explore" button
 // @author       Mettymagic
 // @match        https://www.neopets.com/*
 // @match        https://neopets.com/*
+// @match        https://ncmall.neopets.com/*
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        none
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Quick%20Exploration%20Links.user.js
