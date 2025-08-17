@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-17.0
+// @version      2025-08-17.2
 // @description  Click to collect all void essences using your totally-legitimately-obtained Void Attractor!
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
@@ -8,38 +8,40 @@
 // @connect      jellyneo.net
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // ==/UserScript==
 
-//
+const MAX_RETRIES = 2 // max number of retries if a request fails
+const MIN_DELAY = 500 // minimum delay between requests, in ms
+const DELAY_INCREMENT = 50 // increases on fail, decreases on success
 
-const COLLECT_DELAY = 1000 // in ms, turn up if you're getting errors
 const VAC_ICON = "https://cdn.imgchest.com/files/y8xcn23qr24.gif"
 const JN_LINK = "https://www.jellyneo.net/?go=the_void_within&id=essence_collection" // sorry Dave from Jellyneo
 
-if(window.location.href.includes("/tvw/")) {
-    let vc_list = $("#VoidCollectionTrack > div > .vc-item:not(.locked)")
-    let vc = vc_list[vc_list.length-1]
-    // if not complete, add void collector
-    if(!vc.classList.contains("complete")) {
-        vc.classList.add("mn-vacuum")
-        addTVWCSS()
-    }
-    $(".mn-vacuum:not(.mn-working)").click(collectEssence)
-    fadePrevious(vc_list.slice(0,-1))
+let COLLECT_DELAY = GM_getValue("delay", MIN_DELAY)
+
+let vc_list = $("#VoidCollectionTrack > div > .vc-item:not(.locked)")
+let vc = vc_list[vc_list.length-1]
+// if not complete, add void collector
+if(!vc.classList.contains("complete")) {
+    vc.classList.add("mn-vacuum")
+    addTVWCSS()
 }
+$(".mn-vacuum:not(.mn-working)").click(collectEssence)
+fadePrevious(vc_list.slice(0,-1))
 
 async function fadePrevious(vc_list) {
     for(let e of vc_list) {
         e.style.opacity = 0.5
     }
     let i = vc_list.length-4
-    console.log(i)
     const arrow = $("#VoidCollectionModule > div.vc-collected > div.vc-arrow.right")[0]
     while(i > 0) {
         arrow.click()
-        await new Promise(r => setTimeout(r, 200))
+        await wait(200)
         i -= 1
     }
 }
@@ -74,19 +76,33 @@ async function visitLocations(locs) {
         let loc = locs[j].href
         console.log("[PVA] Visiting " + loc)
 
-        let essences = await visit(loc)
+        let essences = await parseMap(loc)
         if(essences == null) {
             console.log(`[PVA] No essences found at ${loc}.`)
         }
         else {
             console.log(`[PVA] ${essences.length} essence${essences.length>1?"s":""} found at ${loc}, collecting...`)
             let i = 0
+            let err = 0
             while(i < essences.length) {
-                await sendForm(essences[i])
-                i += 1
+                let success = await sendForm(essences[i])
+                if(success) {
+                    i += 1
+                    err = 0
+                    adjustDelay(-DELAY_INCREMENT)
+                }
+                else {
+                    err += 1
+                    adjustDelay(DELAY_INCREMENT)
+                    if(err > MAX_RETRIES) {
+                        console.error(`[PVA] Max retries reached, skipping essence.`)
+                        i += 1
+                        err = 0
+                    }
+                }
                 if(i < essences.length || j < locs.length-1) {
-                    console.log(`[PVA] Waiting ${COLLECT_DELAY}ms...`)
-                    await new Promise(r => setTimeout(r, COLLECT_DELAY))
+                    console.log(`[PVA] Collection ${success?"success":"failure"}, waiting ${COLLECT_DELAY}ms...`)
+                    await wait()
                 }
                 /*console.log("Temp Manual Abort")
                 $(".mn-vacuum")[0].classList.remove("mn-working")
@@ -99,8 +115,22 @@ async function visitLocations(locs) {
     endCollection()
 }
 
+function adjustDelay(val) {
+    if(val==0) return
+    const old = COLLECT_DELAY
+    COLLECT_DELAY = Math.max(MIN_DELAY, COLLECT_DELAY+val)
+    if(old != COLLECT_DELAY) {
+        GM_setValue("delay", COLLECT_DELAY)
+        console.log(`[PVA] Adjusted delay by ${val>0?"+":"-"}${val}, now ${COLLECT_DELAY}ms.`)
+    }
+}
+
+function wait(t=COLLECT_DELAY) {
+    return new Promise(r => setTimeout(r, t))
+}
+
 const ESSENCE_REGEX = /.*placeEssenceOnMap\((\[.*?\])\).*/s
-function visit(url) {
+function parseMap(url) {
     return new Promise((resolve, reject) => {
         $.get(url, function(data) {
             let doc = new DOMParser().parseFromString(data, "text/html")

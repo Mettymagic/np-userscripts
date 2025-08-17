@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Menuless Volunteering <MettyNeo>
-// @version      2025-08-07.1
+// @version      2025-08-17.0
 // @description  Collects rewards upon page visit and lets you assign every shift at once
 // @author       Mettymagic
 // @match        *://www.neopets.com/hospital/volunteer.phtml*
@@ -14,9 +14,15 @@
 // note that this script contains a lot of slightly modified TNT code - no need to reinvent the wheel or whatever
 // thanks Dinah C. https://images.neopets.com/hospital/volunteer.js
 
-const COLLECT_DELAY = 1000
 const FUN_ALLOWED = true // disable if you're lame
+
 const MAX_RETRIES = 2 // max number of retries if a request fails
+const MIN_DELAY = 500 // minimum delay between requests, in ms
+const DELAY_INCREMENT = 50 // increases on fail, decreases on success
+
+let COLLECT_DELAY = GM_getValue("collectDelay", MIN_DELAY)
+let ASSIGN_DELAY = GM_getValue("assignDelay", MIN_DELAY)
+
 
 const LARGE_ICON = "https://pets.neopets.com/cpn/%s/1/3.png"
 const SMALL_ICON = "https://pets.neopets.com/cpn/%s/2/1.png"
@@ -117,10 +123,13 @@ async function completeShifts() {
             if(success) {
                 numCollected += 1
                 console.log(`[MV] Shift ${numCollected}/${num} collected successfully.`)
+                adjustCollectDelay(-DELAY_INCREMENT)
                 arr = arr.slice(1)
+                err = 0
             }
             else {
                 err += 1
+                adjustCollectDelay(DELAY_INCREMENT)
                 if(err > MAX_RETRIES) {
                     console.error(`[MV] Max retries reached, skipping shift.`)
                     arr = arr.slice(1)
@@ -131,8 +140,7 @@ async function completeShifts() {
             status.innerHTML = `(${numCollected}/${num}${err?`, ${err}/${MAX_RETRIES} Fails`:""})`
 
             if(arr.length > 0) {
-                console.log(`[MV] Waiting ${COLLECT_DELAY}ms...`)
-                await new Promise(r => setTimeout(r, COLLECT_DELAY))
+                await wait(COLLECT_DELAY)
             }
         }
         if(numCollected > 0) displayRewards()
@@ -252,14 +260,16 @@ async function assignShifts() {
 
             if(success) {
                 i += 1
+                err = 0
                 console.log(`[MV] Shift ${i}/${arr.length} collected successfully.`)
+                adjustAssignDelay(-DELAY_INCREMENT)
             }
             else {
                 err += 1
+                adjustAssignDelay(DELAY_INCREMENT)
                 if(err > MAX_RETRIES) {
                     console.error(`[MV] Max retries reached, skipping shift.`)
                     i += 1
-                    num -= 1
                     err = 0
                 }
             }
@@ -267,8 +277,7 @@ async function assignShifts() {
             status.innerHTML = `(${i}/${arr.length}${err?`, ${err}/${MAX_RETRIES} Fails`:""})`
 
             if(i < arr.length) {
-                console.log(`[MV] Waiting ${COLLECT_DELAY}ms...`)
-                await new Promise(r => setTimeout(r, COLLECT_DELAY))
+                await wait(ASSIGN_DELAY)
             }
         }
         $("#mv-panel")[0].classList.remove("loading")
@@ -498,6 +507,30 @@ function errorAlert(text) {
 		    <div class="popup-footer-pattern__2020"></div>
 	    </div>`
     togglePopup__2020(err)
+}
+
+function adjustCollectDelay(val) {
+    if(val==0) return
+    const old = COLLECT_DELAY
+    COLLECT_DELAY = Math.max(MIN_DELAY, COLLECT_DELAY+val)
+    if(old != COLLECT_DELAY) {
+        GM_setValue("collectDelay", COLLECT_DELAY)
+        console.log(`[MV] Adjusted collectDelay by ${val>0?"+":"-"}${val}, now ${COLLECT_DELAY}ms.`)
+    }
+}
+function adjustAssignDelay(val) {
+    if(val==0) return
+    const old = ASSIGN_DELAY
+    ASSIGN_DELAY = Math.max(MIN_DELAY, ASSIGN_DELAY+val)
+    if(old != ASSIGN_DELAY) {
+        GM_setValue("assignDelay", ASSIGN_DELAY)
+        console.log(`[MV] Adjusted assignDelay by ${val>0?"+":"-"}${val}, now ${ASSIGN_DELAY}ms.`)
+    }
+}
+
+function wait(t) {
+    console.log(`[MV] Waiting ${t}ms...`)
+    return new Promise(r => setTimeout(r, t))
 }
 
 function addCSS(){
