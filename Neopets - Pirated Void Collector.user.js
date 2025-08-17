@@ -1,16 +1,18 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-07.0
+// @version      2025-08-17.0
 // @description  Click to collect all void essences using your totally-legitimately-obtained Void Attractor!
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
-// @match        *://neopets.com/tvw/
+// @match        *://www.neopets.com/tvw/index.phtml
 // @connect      jellyneo.net
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @grant        GM_xmlhttpRequest
 // @downloadURL  https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // @updateURL    https://github.com/Mettymagic/np-userscripts/raw/main/Neopets%20-%20Pirated%20Void%20Collector.user.js
 // ==/UserScript==
+
+//
 
 const COLLECT_DELAY = 1000 // in ms, turn up if you're getting errors
 const VAC_ICON = "https://cdn.imgchest.com/files/y8xcn23qr24.gif"
@@ -25,6 +27,21 @@ if(window.location.href.includes("/tvw/")) {
         addTVWCSS()
     }
     $(".mn-vacuum:not(.mn-working)").click(collectEssence)
+    fadePrevious(vc_list.slice(0,-1))
+}
+
+async function fadePrevious(vc_list) {
+    for(let e of vc_list) {
+        e.style.opacity = 0.5
+    }
+    let i = vc_list.length-4
+    console.log(i)
+    const arrow = $("#VoidCollectionModule > div.vc-collected > div.vc-arrow.right")[0]
+    while(i > 0) {
+        arrow.click()
+        await new Promise(r => setTimeout(r, 200))
+        i -= 1
+    }
 }
 
 const DATE_REGEX = /.*\(.* (.*)\).*/m
@@ -94,7 +111,7 @@ function visit(url) {
             }
             else {
                 let reg = ESSENCE_REGEX.exec(map.innerHTML)
-                console.log(reg[1])
+                //console.log(reg[1])
                 if(reg == null) resolve(null)
                 else resolve(JSON.parse(reg[1]))
             }
@@ -214,5 +231,20 @@ function addTVWCSS() {
             left: 50%;
             transform: translate(-50%, -50%);
         }
+        /*adapted from https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_image_shake*/
+        @keyframes shake {
+            0% { transform: translate(2%, 2%) rotate(0deg); }
+            10% { transform: translate(-2%, -6%) rotate(-5deg); }
+            20% { transform: translate(-6%, 0px) rotate(5deg); }
+            30% { transform: translate(6%, 2%) rotate(0deg); }
+            40% { transform: translate(2%, -2%) rotate(5deg); }
+            50% { transform: translate(-2%, 4%) rotate(-5deg); }
+            60% { transform: translate(-6%, 2%) rotate(0deg); }
+            70% { transform: translate(6%, 2%) rotate(-5deg); }
+            80% { transform: translate(-2%, -2%) rotate(5deg); }
+            90% { transform: translate(2%, 4%) rotate(0deg); }
+            100% { transform: translate(2%, -4%) rotate(-5deg); }
+        }
+
     `
 }
