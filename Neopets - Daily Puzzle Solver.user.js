@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Daily Puzzle Solver <MettyNeo>
-// @version      1.4.1
+// @version      2025-08-18.0
 // @description  Uses TheDailyNeopets' daily puzzle answers to automatically select the correct daily puzzle answer
 // @author       Metamagic
 // @icon         https://i.imgur.com/RnuqLRm.png
@@ -100,9 +100,9 @@ function requestTDNPage() {
         onload: function(response) {
             console.log("[DPS] Response received!")
             let doc = new DOMParser().parseFromString(response.responseText, "text/html")
-            //blame TDN for this absolute mess lol
-            let question = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(1) > div").innerHTML
-            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div > div:nth-child(2)").childNodes[2].nodeValue
+            // ty for finally fixing this tdn lmao
+            let question = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div:nth-child(1) > div").innerHTML
+            let answer = doc.querySelector("body > table > tbody > tr:nth-child(2) > td:nth-child(3) > div:nth-child(2)").childNodes[2].nodeValue
             setAnswer({q: question, a: answer})
         }
     })
