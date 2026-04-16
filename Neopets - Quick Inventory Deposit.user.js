@@ -81,7 +81,7 @@ function requestQuickStock() {
     let currn = 0 //# of items dumped so far
 
     //sends the first request
-    $.get("https://www.neopets.com/quickstock.phtml", function(data, status){
+    $.get("https://www.neopets.com/quickstock.phtml/", function(data, status){
         let doc = new DOMParser().parseFromString(data, "text/html")
         //does nothing if stackpath's a bitch
         if(doc.title != "Neopets - Quickstock") {
@@ -135,7 +135,7 @@ async function startAdditionalReq(additional_reqs, qs, totalinv, currn, i) {
         }
         //perform a dump
         console.log(`[QID] Visiting quickstock ${i+2} / ${additional_reqs+1}.`)
-        $.get("https://www.neopets.com/quickstock.phtml", function(data, status){
+        $.get("https://www.neopets.com/quickstock.phtml/", function(data, status){
             let doc = new DOMParser().parseFromString(data, "text/html")
             //stops if stackpath blocked
             if(doc.title != "Neopets - Quickstock") {
