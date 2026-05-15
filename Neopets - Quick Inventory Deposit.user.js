@@ -81,7 +81,11 @@ async function requestQuickStock() {
     let currn = 0 //# of items dumped so far
     let ref_ck = '';
 
-    const page_quickstock = await $.get("https://www.neopets.com/quickstock.phtml");
+    const page_quickstock = await $.ajax({
+        url: "https://www.neopets.com/quickstock.phtml",
+        type: "GET",
+        dataType: "text"
+    });
 
     const match = page_quickstock.match(/"_ref_ck":'([^']+)'/);
 
