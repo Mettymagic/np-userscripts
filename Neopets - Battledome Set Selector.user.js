@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2025-08-06.1
+// @version      2026-05-18
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @match        https://www.neopets.com/tvw/
@@ -28,6 +28,7 @@ const IMPROVE_CHALLENGER_LIST = true //enables the 1P challenger list improvemen
 const LOOT_DISPLAY = true //displays earned loot in the form of pretty progress bars
 const INDEX_REDIRECT = true //redirects off the main index page to the fight page
 const LOOSE_OBELISK_RESTRICTIONS = true //allows the script to be used in obelisk battles if you haven't done your 10 battles or if you haven't earned your 15 items. honor means nothing compared to convenience.
+const ALLOW_SWAP_AUTOFILL = true; // allows swapping autofill turns of sets by removing other claimant(s)
 
 const MAX_NP = 50000
 const MAX_ITEMS = 15
@@ -373,7 +374,7 @@ else {
         return button
     }
 
-    //one hell of a functiont hat uses JS to make the setting menu
+    //one hell of a function that uses JS to make the setting menu
     function makeSettingsMenu(i) {
         closeSettingsMenus() //closes other menus
 
@@ -432,7 +433,7 @@ else {
         defc.classList.add("container-horizontal")
         let deftext = document.createElement("div")
         deftext.innerHTML = "Autofill:"
-        let defselect = createSelect(i, set)
+        let defselect = createAutofillSelect(i, set)
         if(isEmptySet) defselect.disabled = true
         defc.appendChild(deftext)
         defc.appendChild(defselect)
@@ -494,7 +495,7 @@ else {
         menu.remove()
     }
 
-    function createSelect(i, set) {
+    function createAutofillSelect(i, set) {
         let afset = getData("bdautofill")
 
         let defselect = document.createElement("SELECT")
@@ -520,7 +521,7 @@ else {
         o4.value = -1
         o4.label = "Default"
         o4.innerHTML = "Default"
-        if(afset.default != null && afset.default != i) o4.disabled = true
+        if(afset.default != null && afset.default != i && !ALLOW_SWAP_AUTOFILL) o4.disabled = true
         defselect.appendChild(o4)
 
         //sets default value
@@ -1072,6 +1073,9 @@ else {
     function updateStoredSet(i, newset, updateAutofill = false) {
         //updates stored set
         let sets = getData("bdsets")
+        if (ALLOW_SWAP_AUTOFILL){
+            sets.forEach((set) => {if (set.default === newset.default) set.default = null});
+        }
         sets[i] = newset
         setData("bdsets", sets)
 
