@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Quick Inventory Deposit <MettyNeo>
-// @version      1.0
+// @version      1.1
 // @description  Adds a button that quickly deposits all items from your inventory into your SDB.
 // @author       Metamagic
 // @match        *://www.neopets.com/*
@@ -73,29 +73,34 @@ function addButton() {
 //========
 
 //gets the quick stock page and uses data from there to process
-function requestQuickStock() {
+async function requestQuickStock() {
     console.log("[QID] Requesting quickstock page...")
     $("#qid-status")[0].innerHTML = "Counting stock..."
 
     let totalinv = 0 //# of items before dump
     let currn = 0 //# of items dumped so far
+    let ref_ck = '';
+
+    const page_quickstock = await $.ajax({
+        url: "https://www.neopets.com/quickstock.phtml",
+        type: "GET",
+        dataType: "text"
+    });
+
+    const match = page_quickstock.match(/"_ref_ck":'([^']+)'/);
+
+    if (match) {
+        ref_ck = match[1];
+    }
 
     //sends the first request
-    $.get("https://www.neopets.com/quickstock.phtml", function(data, status){
-        let doc = new DOMParser().parseFromString(data, "text/html")
-        //does nothing if stackpath's a bitch
-        if(doc.title != "Neopets - Quickstock") {
-            console.log("[QID] Quick Stock page request blocked by stackpath. :(")
-            $("#qid-status")[0].style.backgroundColor = "#f2d8d3"
-            $("#qid-status")[0].innerHTML = "ERROR: Stackpath Blocked!"
-            $("#qid-status")[0].classList.add("done")
-            $("#qid-button")[0].classList.add("done")
-            return
-        }
-        let qs = getReqText(doc)
-        totalinv = qs[1] //records # of items to deposit total
+    $.get("https://www.neopets.com/np-templates/ajax/quickstock/get_items.php?page=1&per_page=100&filter=np&sort=recent&stack=1", function(data, status){
+
+        let qs = getReqText(data)
+        qs._ref_ck = ref_ck
+
         //does nothing if nothing to dump
-        if(totalinv < 1) {
+        if(data.total < 1) {
             console.log("[QID] Your inventory is empty!")
             $("#qid-status")[0].style.backgroundColor = "#d3f5dc"
             $("#qid-status")[0].innerHTML = "0 Items -> SDB"
@@ -104,25 +109,39 @@ function requestQuickStock() {
             return
         }
 
-        let n = Math.min(70, qs[1]) //# of items getting deposited (max 70 at a time)
-        let additional_reqs = Math.floor(totalinv / 70) //finds # of additional requests to make after this first one
-        console.log(`[QID] Depositing ${totalinv} items using ${additional_reqs+1} requests.`)
-        $("#qid-status")[0].innerHTML = `Status: ${currn} / ${totalinv}`
+        let n = Math.min(70, data.total) //# of items getting deposited (max 70 at a time)
+        let additional_reqs = Math.floor(data.total / 70) //finds # of additional requests to make after this first one
+        console.log(`[QID] Depositing ${data.total} items using ${additional_reqs+1} requests.`)
+        $("#qid-status")[0].innerHTML = `Status: ${currn} / ${data.total}`
 
         //sends request using quickstock process link
         console.log(`[QID] Sending request 1 / ${additional_reqs+1}.`)
-        $.post("/process_quickstock.phtml", qs[0], () => {
-            console.log(`[QID] ${currn + n} / ${totalinv} items deposited.`)
-            currn += n
-            $("#qid-status")[0].innerHTML = `Status: ${currn} / ${totalinv}`
-            if(additional_reqs > 0) startAdditionalReq(additional_reqs, qs, totalinv, currn, 0) //handles extra requests
-        })
+
+        $.ajax({
+            url: "https://www.neopets.com/np-templates/ajax/process_quickstock.php",
+            type: "POST",
+            data: JSON.stringify(qs),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function(response) {
+                console.log(`[QID] ${currn + n} / ${data.total} items deposited.`);
+                currn += n;
+                $("#qid-status")[0].innerHTML = `Status: ${currn} / ${data.total}`;
+
+                if (additional_reqs > 0) {
+                    startAdditionalReq(additional_reqs, ref_ck, data.total, currn, 0);
+                }
+            },
+            error: function(err) {
+                console.error("Error:", err);
+            }
+        });
     })
 }
 
 //since qs has a 70 item limit, sometimes we need to send additional requests one after the other
 //this function is recursive and thus pretty jank. please forgive me.
-async function startAdditionalReq(additional_reqs, qs, totalinv, currn, i) {
+async function startAdditionalReq(additional_reqs, ref_ck, totalinv, currn, i) {
     let promise = new Promise((res) => {
         //if we've done enough requests, stop the loop
         if(i >= additional_reqs) {
@@ -135,29 +154,32 @@ async function startAdditionalReq(additional_reqs, qs, totalinv, currn, i) {
         }
         //perform a dump
         console.log(`[QID] Visiting quickstock ${i+2} / ${additional_reqs+1}.`)
-        $.get("https://www.neopets.com/quickstock.phtml", function(data, status){
-            let doc = new DOMParser().parseFromString(data, "text/html")
-            //stops if stackpath blocked
-            if(doc.title != "Neopets - Quickstock") {
-                console.log("[QID] Quick Stock page request blocked by stackpath. :(")
-                $("#qid-status")[0].style.backgroundColor = "#f2d8d3"
-                $("#qid-status")[0].innerHTML = "ERROR: Stackpath Blocked!"
-                $("#qid-status")[0].classList.add("done")
-                $("#qid-button")[0].classList.add("done")
-                return
-            }
+        $.get("https://www.neopets.com/np-templates/ajax/quickstock/get_items.php?page=1&per_page=100&filter=np&sort=recent&stack=1", function(data, status){
 
-            qs = getReqText(doc)
-            let n = Math.min(70, qs[1]) //# of items getting deposited
+            qs = getReqText(data)
+            qs._ref_ck = ref_ck
+            let n = Math.min(70, data.total) //# of items getting deposited
 
             //sends request using quickstock process link
             console.log(`[QID] Sending request ${i+2} / ${additional_reqs+1}.`)
-            $.post("/process_quickstock.phtml", qs[0], () => {
-                console.log(`[QID] ${currn + n} / ${totalinv} items deposited.`)
-                currn += n
-                $("#qid-status")[0].innerHTML = `Status: ${currn} / ${totalinv}`
-                res(currn < totalinv)
-            })
+
+            $.ajax({
+                url: "https://www.neopets.com/np-templates/ajax/process_quickstock.php",
+                type: "POST",
+                data: JSON.stringify(qs),
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function(response) {
+                    console.log(`[QID] ${currn + n} / ${totalinv} items deposited.`);
+                    currn += n;
+                    $("#qid-status")[0].innerHTML = `Status: ${currn} / ${totalinv}`;
+
+                    res(currn < totalinv)
+                },
+                error: function(err) {
+                    console.error("Error:", err);
+                }
+            });
         })
     }).then((val) => { //dump again
         if(val) startAdditionalReq(additional_reqs, qs, totalinv, currn, i+1)
@@ -172,22 +194,13 @@ async function startAdditionalReq(additional_reqs, qs, totalinv, currn, i) {
 
 //formats the data to be sent to the process post request
 function getReqText(doc) {
-    let items = Array.from(doc.querySelectorAll("form > table > tbody > tr > input"))
-        .map((input) => {
-            let n = input.getAttribute("name").match(/id_arr\[(\d*)\]/)[1]
-            //added an action field in case i decide to expand on this in the future
-            return {name:input.getAttribute("name"), value: input.getAttribute("value"), actionkey: `radio_arr[${n}]`, action: "deposit"}
+
+    let items = doc.items.map((input) => {
+            return {oii: input.oii, action: "deposit"}
         })
     if(items.length == 0) return [null, 0] //shortcut
 
-    let req = "buyitem=0"
-    for(const item of items) {
-        //add item to request
-        req += `&${item.name}=${item.value}`
-        //add action to request
-        if(item.action) req += `&${item.actionkey}=${item.action}`
-    }
-    return [req.replaceAll("[", "%5B").replaceAll("]", "%5D"), items.length]
+    return {items: items, cashItems: [], _ref_ck: ''}
 }
 
 
