@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Pirated Dr. Landelbrots Void Attractor <MettyNeo>
-// @version      2025-08-17.2
+// @version      2026-06-04
 // @description  Click to collect all void essences using your totally-legitimately-obtained Void Attractor!
 // @author       Mettymagic
 // @match        *://www.neopets.com/tvw/
@@ -15,7 +15,7 @@
 // ==/UserScript==
 
 const MAX_RETRIES = 2 // max number of retries if a request fails
-const MIN_DELAY = 500 // minimum delay between requests, in ms
+const MIN_DELAY = 200 // minimum delay between requests, in ms
 const DELAY_INCREMENT = 50 // increases on fail, decreases on success
 
 const VAC_ICON = "https://cdn.imgchest.com/files/y8xcn23qr24.gif"
@@ -64,7 +64,11 @@ function collectEssence() {
             let aDate = DATE_REGEX.exec(aText)[1]
 
             if (aDate != getDate()) locationsNotUpdated()
-            else visitLocations(a.querySelectorAll("a:not(:last-of-type)"))
+            else {
+                let locs = a.querySelectorAll("a")//a.querySelectorAll("a:not(:last-of-type)")
+                console.log(locs)
+                visitLocations(locs)
+            }
         },
         onerror: function(e) {console.error(`[PVA] ${e}`)}
     })
