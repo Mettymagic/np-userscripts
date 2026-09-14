@@ -73,11 +73,12 @@ const ROW_COLORS = {
 
 // lazy plot point tracking
 if(window.location.href.includes("/tvw/")) {
-    await new Promise(r => setTimeout(r, 1000)) // i can't be assed to set up observers
-    let pp = $("#container__2020 div.plothub-chapter-points div.plothub-point-amt")[0].innerHTML.split("/") // lol pp
-    GM_setValue("plotpoints", parseInt(pp[0]))
-    GM_setValue("maxplotpoints", parseInt(pp[1]))
-    console.log("[BD+] Recorded plot points")
+    setTimeout(() => {
+        let pp = $("#container__2020 div.plothub-chapter-points div.plothub-point-amt")[0].innerHTML.split("/"); // lol pp
+        GM_setValue("plotpoints", parseInt(pp[0]));
+        GM_setValue("maxplotpoints", parseInt(pp[1]));
+        console.log("[BD+] Recorded plot points");
+    }, 1000);
 }
 else {
     let MAX_PP = GM_getValue("maxplotpoints", 3000)
