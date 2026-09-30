@@ -2,7 +2,7 @@
 // @name         Neopets - Battledome Set Selector (BD+) <MettyNeo>
 // @description  Adds a toolbar to define and select up to 5 different loadouts. can default 1 loadout to start as selected. Also adds other QoL battledome features, such as disabling battle animations and auto-selecting 1P opponent.
 // @author       Metamagic
-// @version      2026-05-18
+// @version      2026-09-30
 // @icon         https://i.imgur.com/RnuqLRm.png
 // @match        https://www.neopets.com/dome/*
 // @match        https://www.neopets.com/tvw/
