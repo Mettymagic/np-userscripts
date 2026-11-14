@@ -450,7 +450,7 @@ function getLevelUpChance(exp, lvl) {
 //========
 
 function getUsername() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(3) a.text-muted")[0].innerHTML
+    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(4) a.text-muted")[0].innerHTML
     else return $("#header > table > tbody > tr:nth-child(1) > td.user.medText a[href]")[0].innerHTML
 }
 
@@ -497,7 +497,7 @@ function getPetpet(e) {
 }
 
 function getActivePet() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(4) > a")[0].innerHTML
+    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(5) > a")[0].innerHTML
     else return $("#content > table > tbody > tr > td.sidebar > div:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > b")[0].innerHTML
 }
 
