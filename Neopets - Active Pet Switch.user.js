@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Neopets - Active Pet Switch & Fishing Vortex Plus <MettyNeo>
-// @version      2025.08.18.0
+// @version      2025.08.18.1
 // @description  APS adds a button to the sidebar that lets you easily switch your active pet. FVP adds additional info to the fishing vortex
 // @author       Metamagic
 // @match        *://*.neopets.com/*
@@ -450,7 +450,8 @@ function getLevelUpChance(exp, lvl) {
 //========
 
 function getUsername() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(3) a.text-muted")[0].innerHTML
+    //finds the "Welcome, <user>" link by what it links to, not its position in the menu
+    if(isBeta) return $("#navprofiledropdown__2020 a[href*='userlookup.phtml']")[0].innerHTML.trim()
     else return $("#header > table > tbody > tr:nth-child(1) > td.user.medText a[href]")[0].innerHTML
 }
 
@@ -497,12 +498,14 @@ function getPetpet(e) {
 }
 
 function getActivePet() {
-    if(isBeta) return $("#navprofiledropdown__2020 > div:nth-child(4) > a")[0].innerHTML
+    //finds the "Active Pet: <pet>" link by what it links to, not its position in the menu
+    if(isBeta) return $("#navprofiledropdown__2020 a[href*='petlookup.phtml']")[0].innerHTML.trim()
     else return $("#content > table > tbody > tr > td.sidebar > div:nth-child(1) > table > tbody > tr:nth-child(1) > td > a > b")[0].innerHTML
 }
 
 function getButtonLocation() {
-    if(isBeta) var e = $("#navprofiledropdown__2020 > div:nth-child(4)")
+    //puts the button under the "Active Pet:" line
+    if(isBeta) var e = $("#navprofiledropdown__2020 a[href*='petlookup.phtml']").parent()
     else e = $(".activePet")
     if(e.length) return e[0]
     else return null
